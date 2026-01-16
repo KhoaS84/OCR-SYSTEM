@@ -24,7 +24,7 @@ if not settings.configured:
             'django.contrib.messages',
             'django.contrib.staticfiles',
             'django_extensions',
-            'core',  # your app name
+            # 'core',  # your app name
         ],
         USE_TZ=True,
 
@@ -39,3 +39,4 @@ if not settings.configured:
 django.setup()
 
 # Now you can import and use your models
+
