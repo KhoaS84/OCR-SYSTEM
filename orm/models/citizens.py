@@ -1,6 +1,6 @@
 from django.db import models
 from django.utils import timezone
-from orm.models.user import User
+from models.user import User
 
 class GenderChoices(models.TextChoices):
     MALE = 'Nam', 'Nam'

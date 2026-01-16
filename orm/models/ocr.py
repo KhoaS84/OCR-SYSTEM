@@ -1,6 +1,6 @@
 from django.db import models
 from django.utils import timezone
-from orm.models.documents import Documents
+from models.documents import Documents
 
 class ocr_jobs (models.Model):
 
