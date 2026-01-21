@@ -82,10 +82,21 @@ WSGI_APPLICATION = 'orm.wsgi.application'
 #     }
 # }
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'ID_OCR',
+#         'USER': 'postgres',
+#         'PASSWORD': 'postgresql',
+#         'HOST': 'localhost',
+#         'PORT': '5432',
+#     }
+# }
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'ID_OCR',
+        'NAME': 'OCR_SYSTEM',
         'USER': 'postgres',
         'PASSWORD': 'postgresql',
         'HOST': 'localhost',
@@ -151,3 +162,4 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
