@@ -2,13 +2,12 @@ from django.db import models
 from django.utils import timezone
 from models.user import User
 
-class GenderChoices(models.TextChoices):
-    MALE = 'Nam', 'Nam'
-    FEMALE = 'Nữ', 'Nữ'
-    OTHER = 'Khác', 'Khác'
-
 class Citizens(models.Model):
-
+    class GenderChoices(models.TextChoices):
+        MALE = 'Nam', 'Nam'
+        FEMALE = 'Nữ', 'Nữ'
+        OTHER = 'Khác', 'Khác'
+        
     id = models.AutoField(
         primary_key=True
         )
@@ -40,3 +39,4 @@ class Citizens(models.Model):
     
     def __str__(self):
         return self.name
+
