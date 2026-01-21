@@ -1,0 +1,27 @@
+# FastAPI OCR Service Requirements
+
+# FastAPI and related
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# PyTorch and Computer Vision
+torch==2.1.2
+torchvision==0.16.2
+timm==0.9.12
+
+# Image Processing
+Pillow==10.2.0
+opencv-python==4.9.0.80
+
+# Utilities
+numpy==1.26.3
+gdown==4.7.1
+
+# Logging
+python-json-logger==2.0.7
+
+# CORS
+python-dotenv==1.0.0
