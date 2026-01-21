@@ -7,14 +7,24 @@ if not settings.configured:
     settings.configure(
         DEBUG=True,
         DATABASES={
+            # 'default': {
+            #     'ENGINE': 'django.db.backends.postgresql',
+            #     'NAME': 'ID_OCR',
+            #     'USER': 'postgres',
+            #     'PASSWORD': 'postgresql',
+            #     'HOST': 'localhost',
+            #     'PORT': '5432',
+            # }
             'default': {
                 'ENGINE': 'django.db.backends.postgresql',
-                'NAME': 'ID_OCR',
+                'NAME': 'OCR_SYSTEM',
                 'USER': 'postgres',
                 'PASSWORD': 'postgresql',
                 'HOST': 'localhost',
                 'PORT': '5432',
             }
+}
+
         },
         INSTALLED_APPS=[
             'django.contrib.admin',
@@ -39,4 +49,5 @@ if not settings.configured:
 django.setup()
 
 # Now you can import and use your models
+
 
