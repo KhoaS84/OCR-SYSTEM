@@ -1,76 +1,67 @@
-from typing import List, Optional
+from typing import List
+from django.utils import timezone
 from orm.models.documents import Documents, DocumentImages
 from orm.models.citizens import Citizens
-from orm.models.user import User
 
 def create_document_cccd(user_id: int, front_path: str, back_path: str):
-    """
-    Logic lưu CCCD: 1 Document -> 2 Images (Front/Back)
-    """
     try:
-        # 1. Lấy user object
-        user = User.objects.get(id=user_id)
+        citizen = Citizens.objects.get(user_id=user_id)
 
-        # 2. Tạo Document chính
         doc = Documents.objects.create(
-            user=user,
-            name=f"CCCD - {user.full_name or user.email}",
-            document_type=Documents.DocumentsType.CCCD,  # 'cccd'
-            status=Documents.DocumentStatus.PENDING      # 'pending'
-        )
-
-        # 3. Lưu thông tin 2 ảnh (Mặt trước)
-        DocumentImages.objects.create(
-            document=doc,
-            image_url=front_path,
-            side=DocumentImages.SideChoices.FRONT # 'front'
-        )
-
-        # 4. Lưu thông tin 2 ảnh (Mặt sau)
-        DocumentImages.objects.create(
-            document=doc,
-            image_url=back_path,
-            side=DocumentImages.SideChoices.BACK # 'back'
-        )
-
-        # 5. Tạo sẵn bản ghi Citizen (chưa có data, chờ OCR)
-        Citizens.objects.create(document=doc)
-
-        return doc
-    except Exception as e:
-        print(f"Error in create_document_cccd: {e}")
-        return None
-
-def create_document_bhyt(user_id: int, image_path: str):
-    """
-    Logic lưu BHYT: 1 Document -> 1 Image
-    """
-    try:
-        user = User.objects.get(id=user_id)
-        
-        doc = Documents.objects.create(
-            user=user,
-            name=f"BHYT - {user.full_name or user.email}",
-            document_type=Documents.DocumentsType.BHYT, # 'bhyt'
-            status=Documents.DocumentStatus.PENDING
+            citizen=citizen,
+            type=Documents.DocumentsType.CCCD,
+            status=Documents.DocumentStatus.PENDING,
+            issue_date=timezone.now().date(),
+            expire_date=timezone.now().date()
         )
 
         DocumentImages.objects.create(
             document=doc,
-            image_url=image_path,
+            image_path=front_path,
             side=DocumentImages.SideChoices.FRONT
         )
 
-        Citizens.objects.create(document=doc)
-        
+        DocumentImages.objects.create(
+            document=doc,
+            image_path=back_path,
+            side=DocumentImages.SideChoices.BACK
+        )
+
         return doc
-    except Exception as e:
-        print(f"Error in create_document_bhyt: {e}")
+
+    except Citizens.DoesNotExist:
         return None
 
-def get_document_by_id(doc_id: int):
+def create_document_bhyt(user_id: int, image_path: str):
     try:
-        # Dùng prefetch_related để lấy luôn danh sách images đi kèm (tối ưu query)
-        return Documents.objects.prefetch_related('images').get(id=doc_id)
-    except Documents.DoesNotExist:
+        citizen = Citizens.objects.get(user_id=user_id)
+
+        doc = Documents.objects.create(
+            citizen=citizen,
+            type=Documents.DocumentsType.BHYT,
+            status=Documents.DocumentStatus.PENDING,
+            issue_date=timezone.now().date(),
+            expire_date=timezone.now().date()
+        )
+
+        DocumentImages.objects.create(
+            document=doc,
+            image_path=image_path,
+            side=DocumentImages.SideChoices.FRONT
+        )
+
+        return doc
+
+    except Citizens.DoesNotExist:
         return None
+
+def get_user_documents(user_id: int) -> List[Documents]:
+    return list(Documents.objects.filter(citizen__user_id=user_id))
+
+def delete_document(doc_id: int, user_id: int) -> bool:
+    try:
+        doc = Documents.objects.get(id=doc_id, citizen__user_id=user_id)
+        doc.delete()
+        return True
+    except Documents.DoesNotExist:
+        return False

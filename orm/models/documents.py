@@ -44,7 +44,7 @@ class Documents(models.Model):
     )
 
     def __str__(self):
-        return self.id
+        return str(self.id)
 
 # CCCD & BHYT
 class CCCD(models.Model):
@@ -126,4 +126,4 @@ class DocumentImages(models.Model):
     )
 
     def __str__(self):
-        return self.id
+        return str(self.id)

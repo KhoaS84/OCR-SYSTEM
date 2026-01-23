@@ -41,8 +41,8 @@ class ocr_jobs (models.Model):
     )
 
     def __str__(self):
-        return self.id
-    
+        return str(self.id)
+
 class ocr_results(models.Model):
 
     id = models.AutoField(
@@ -62,4 +62,4 @@ class ocr_results(models.Model):
     )
 
     def __str__(self):
-        return f"{self.field_name}: {self.field_value}"
+        return f"{self.field_name}: {self.raw_text}"
