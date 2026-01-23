@@ -1,2 +1,6 @@
 pydantic
 fastapi
+python-jose
+pydantic
+passlib
+django

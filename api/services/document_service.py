@@ -1,27 +1,76 @@
-from orm.models import Citizen, Document, DocumentImage
-from api.utils.file import save_image
-from django.db import transaction
-import uuid
+from typing import List, Optional
+from orm.models.documents import Documents, DocumentImages
+from orm.models.citizens import Citizens
+from orm.models.user import User
 
-@transaction.atomic
-def create_cccd(user, front, back):
-    citizen, _ = Citizen.objects.get_or_create(user_id=user.id)
+def create_document_cccd(user_id: int, front_path: str, back_path: str):
+    """
+    Logic lưu CCCD: 1 Document -> 2 Images (Front/Back)
+    """
+    try:
+        # 1. Lấy user object
+        user = User.objects.get(id=user_id)
 
-    document = Document.objects.create(
-        citizen=citizen,
-        type="CCCD",
-        status="PENDING"
-    )
+        # 2. Tạo Document chính
+        doc = Documents.objects.create(
+            user=user,
+            name=f"CCCD - {user.full_name or user.email}",
+            document_type=Documents.DocumentsType.CCCD,  # 'cccd'
+            status=Documents.DocumentStatus.PENDING      # 'pending'
+        )
 
-    front_path = save_image(front, document.id, "front")
-    back_path = save_image(back, document.id, "back")
+        # 3. Lưu thông tin 2 ảnh (Mặt trước)
+        DocumentImages.objects.create(
+            document=doc,
+            image_url=front_path,
+            side=DocumentImages.SideChoices.FRONT # 'front'
+        )
 
-    DocumentImage.object.bulk_create([
-        DocumentImage(document=document, image_path=front_path, side="FRONT"),
-        DocumentImage(document=document, image_path=back_path, side="BACK")
-    ])
+        # 4. Lưu thông tin 2 ảnh (Mặt sau)
+        DocumentImages.objects.create(
+            document=doc,
+            image_url=back_path,
+            side=DocumentImages.SideChoices.BACK # 'back'
+        )
 
-    return {
-        "document_id": document.id,
-        "status": document.status
-    }
+        # 5. Tạo sẵn bản ghi Citizen (chưa có data, chờ OCR)
+        Citizens.objects.create(document=doc)
+
+        return doc
+    except Exception as e:
+        print(f"Error in create_document_cccd: {e}")
+        return None
+
+def create_document_bhyt(user_id: int, image_path: str):
+    """
+    Logic lưu BHYT: 1 Document -> 1 Image
+    """
+    try:
+        user = User.objects.get(id=user_id)
+        
+        doc = Documents.objects.create(
+            user=user,
+            name=f"BHYT - {user.full_name or user.email}",
+            document_type=Documents.DocumentsType.BHYT, # 'bhyt'
+            status=Documents.DocumentStatus.PENDING
+        )
+
+        DocumentImages.objects.create(
+            document=doc,
+            image_url=image_path,
+            side=DocumentImages.SideChoices.FRONT
+        )
+
+        Citizens.objects.create(document=doc)
+        
+        return doc
+    except Exception as e:
+        print(f"Error in create_document_bhyt: {e}")
+        return None
+
+def get_document_by_id(doc_id: int):
+    try:
+        # Dùng prefetch_related để lấy luôn danh sách images đi kèm (tối ưu query)
+        return Documents.objects.prefetch_related('images').get(id=doc_id)
+    except Documents.DoesNotExist:
+        return None
