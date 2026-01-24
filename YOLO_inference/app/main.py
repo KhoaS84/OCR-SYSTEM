@@ -27,5 +27,10 @@ app.include_router(
 )
 
 @app.get("/")
+def root():
+    return {"status": "ok"}
+
+
+@app.get("/health")
 def health_check():
     return {"status": "ok"}

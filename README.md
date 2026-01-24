@@ -1,47 +1,40 @@
-# OCR Detection System
+# OCR System - Vietnamese Text Detection & Recognition
 
-Complete system for Vietnamese text detection and recognition using YOLO object detection and CNN-Transformer OCR.
+Complete system for Vietnamese text detection and recognition using YOLO v11 and VietOCR.
 
-## System Overview
-
-This project contains three integrated services:
-
-1. **YOLO Detection API** (`YOLO_inference/`) - Detects text regions in images
-2. **OCR Recognition API** (`OCR_inference/`) - Recognizes Vietnamese text
-3. **Pipeline Service** (`pipeline/`) - Combines both services for end-to-end processing
-
-## Architecture
+## 🏗️ Architecture
 
 ```
-┌─────────────┐
-│   Image     │
-└──────┬──────┘
-       │
+┌──────────────┐
+│    Image     │
+└──────┬───────┘
        ▼
-┌─────────────────────┐
-│   YOLO Detection    │  Port 8000
-│  (Text Regions)     │
-└──────┬──────────────┘
-       │ bboxes & confidences
-       ▼
-┌─────────────────────┐
-│  OCR Recognition    │  Port 8001
-│  (Text Content)     │
-└──────┬──────────────┘
-       │
-       ▼
-┌─────────────────────┐
-│  Combined Results   │
-│ (Regions + Text)    │
-└─────────────────────┘
+┌──────────────────┐
+│   Pipeline V2    │  (Port 8003)
+└────┬────────┬────┘
+     │        │
+     ▼        ▼
+┌─────────┐  ┌──────────┐
+│  YOLO   │  │ VietOCR  │
+│  (8001) │  │  (8002)  │
+└─────────┘  └──────────┘
 ```
 
-## Quick Start
+## 📁 Project Structure
+
+```
+OCR-SYSTEM/
+├── YOLO_inference/        # YOLO text detection service
+├── OCR_V2_inference/      # VietOCR text recognition service
+└── pipeline_v2/           # Integration pipeline
+```
+
+## 🚀 Quick Start
 
 ### Prerequisites
 
 - Python 3.8+
-- CUDA-capable GPU (optional, for faster inference)
+- PyTorch (with or without CUDA)
 
 ### Installation
 
@@ -49,224 +42,276 @@ This project contains three integrated services:
    ```bash
    git clone https://github.com/KhoaS84/OCR-SYSTEM.git
    cd OCR-SYSTEM
+   cd OCR-SYSTEM
    ```
 
 2. **Setup YOLO service:**
    ```bash
    cd YOLO_inference
-   pip install -r requirements.txt
-   # Place your YOLO model in weights/Model_YOLO11s_card.pt
    ```
 
-3. **Setup OCR service (Automatic):**
-   ```bash
-   cd ../OCR_inference
-   pip install -r requirements.txt
-   # Repository and model will be auto-downloaded on first run!
-   ```
-   
-   Or use manual setup:
-   ```bash
-   cd ../OCR_inference
-   git clone https://github.com/BoPDA1607/OCR_CNN_Vietnamese.git
-   pip install -r requirements.txt
-   
-   # Download OCR model
-   pip install gdown
-   gdown https://drive.google.com/uc?id=1iZv3Iv3oFdvMbJl71TreW1OfYUTyUcJG
-   mv best_ocr_model.pth OCR_CNN_Vietnamese/
-   ```
+2. **Install dependencies:**
 
-4. **Setup Pipeline service:**
    ```bash
-   cd ../pipeline
+   # YOLO Service
+   cd YOLO_inference
+   pip install -r requirements.txt
+
+   # VietOCR Service
+   cd ../OCR_V2_inference
+   pip install -r requirements.txt
+
+   # Pipeline Service
+   cd ../pipeline_v2
    pip install -r requirements.txt
    ```
-
-> **Note:** OCR service now features **automatic setup**! On first startup, it will automatically clone the repository and download the model. See [OCR_inference/AUTO_SETUP.md](OCR_inference/AUTO_SETUP.md) for details.
 
 ### Running the System
 
 Open three terminals:
 
-**Terminal 1 - YOLO Service:**
+**Terminal 1 - YOLO Detection:**
 ```bash
 cd YOLO_inference
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+python -m uvicorn app.main:app --port 8001
 ```
 
-**Terminal 2 - OCR Service:**
+**Terminal 2 - VietOCR Recognition:**
 ```bash
-cd OCR_inference
-uvicorn app.main:app --host 0.0.0.0 --port 8001
+cd OCR_V2_inference
+python -m uvicorn app.main:app --port 8002
 ```
 
-**Terminal 3 - Pipeline Service (Optional):**
+**Terminal 3 - Pipeline:**
 ```bash
-cd pipeline
-python app.py
-# Or: uvicorn app:app --host 0.0.0.0 --port 8002
+cd pipeline_v2
+python -m uvicorn app:app --port 8003
 ```
 
-## Usage
+### Test the System
 
-### Option 1: Complete Pipeline (Recommended)
+```bash
+cd pipeline_v2
+python test_pipeline.py
+```
 
-Process images through the entire detection + recognition pipeline:
+## 📡 API Usage
+
+### Complete Pipeline (Recommended)
 
 ```python
-from pipeline.service import create_pipeline
+import requests
 
-# Create pipeline
-pipeline = create_pipeline()
+url = "http://localhost:8003/api/v1/process"
 
-# Process image
-result = pipeline.process_image("image.jpg")
+with open("image.jpg", "rb") as f:
+    files = {"file": f}
+    data = {
+        "conf_threshold": 0.5,
+        "iou_threshold": 0.45
+    }
+    
+    response = requests.post(url, files=files, data=data)
+    result = response.json()
 
-# Results
-for detection in result.detections_with_text:
-    print(f"Detected: '{detection.text}' at {detection.bbox}")
+# Access results
+for detection in result["detections_with_text"]:
+    print(f"Text: {detection['text']}")
+    print(f"BBox: {detection['bbox']}")
 ```
 
-**Or via API:**
+**Using cURL:**
 ```bash
-curl -X POST "http://localhost:8002/api/v1/process" \
+curl -X POST "http://localhost:8003/api/v1/process" \
   -F "file=@image.jpg" \
   -F "conf_threshold=0.5"
 ```
 
-### Option 2: Individual Services
+**Interactive API:**
+Visit http://localhost:8003/docs
 
-**YOLO Detection Only:**
+### Individual Services
+
+**YOLO Detection:**
 ```bash
-curl -X POST "http://localhost:8000/api/v1/detect" \
+curl -X POST "http://localhost:8001/api/v1/detect" \
   -F "file=@image.jpg"
 ```
 
-**OCR Recognition Only:**
+**VietOCR Recognition:**
 ```bash
-curl -X POST "http://localhost:8001/api/v1/ocr" \
-  -F "file=@image.jpg" \
-  -F 'bboxes=[[100,100,200,200]]' \
-  -F 'confidences=[0.95]'
+curl -X POST "http://localhost:8002/api/v1/ocr/single" \
+  -F "file=@image.jpg"
 ```
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 OCR-SYSTEM/
-├── YOLO_inference/          # YOLO detection service
+├── YOLO_inference/          # YOLO text detection service
 │   ├── app/
-│   │   ├── main.py         # FastAPI app
-│   │   ├── api/            # API endpoints
-│   │   ├── models/         # YOLO detector
-│   │   └── schemas/        # Data models
-│   └── weights/            # YOLO model weights
+│   │   ├── main.py          # FastAPI app
+│   │   ├── api/detect.py    # Detection endpoints
+│   │   ├── models/          # YOLO detector
+│   │   └── core/config.py   # Configuration
+│   └── weights/             # YOLO model weights
 │
-├── OCR_inference/          # OCR recognition service
+├── OCR_V2_inference/        # VietOCR recognition service
 │   ├── app/
-│   │   ├── main.py         # FastAPI app
-│   │   ├── api/            # API endpoints
-│   │   ├── models/         # OCR service
-│   │   └── schemas/        # Data models
-│   └── OCR_CNN_Vietnamese/ # OCR model repository
+│   │   ├── main.py          # FastAPI app
+│   │   ├── api/ocr.py       # OCR endpoints
+│   │   ├── models/          # VietOCR service
+│   │   └── core/config.py   # Configuration
+│   └── weights/             # Custom model (auto-downloaded)
 │
-└── pipeline/               # Integration pipeline
-    ├── app.py              # Pipeline API service
-    ├── service.py          # Core pipeline logic
-    ├── schemas.py          # Data models
-    ├── example.py          # Usage examples
-    └── README.md           # Pipeline documentation
+└── pipeline_v2/             # Integration pipeline
+    ├── app.py               # Pipeline API
+    ├── service.py           # Orchestration logic
+    ├── schemas.py           # Data models
+    └── test_pipeline.py     # Test script
 ```
 
-## API Documentation
+## 🔧 Configuration
 
-When services are running, access interactive API docs:
+### VietOCR Custom Model
 
-- **YOLO API**: http://localhost:8000/docs
-- **OCR API**: http://localhost:8001/docs
-- **Pipeline API**: http://localhost:8002/docs
-
-## Examples
-
-### Python Script
+Edit `OCR_V2_inference/app/core/config.py`:
 
 ```python
-from pipeline.service import create_pipeline
+USE_CUSTOM_MODEL = True  # Use custom model
+CUSTOM_MODEL_GDRIVE_ID = "17UtJhDv_I5a2AQfU4M7AtnWy2KYiQSMS"
 
-# Initialize
-pipeline = create_pipeline(
-    yolo_url="http://localhost:8000",
-    ocr_url="http://localhost:8001",
-    conf_threshold=0.5
+# To use default VietOCR model
+USE_CUSTOM_MODEL = False
+```
+
+### GPU/CPU Configuration
+
+System auto-detects CUDA availability. To force CPU:
+
+```python
+# OCR_V2_inference/app/core/config.py
+DEVICE = "cpu"
+```
+
+### Service URLs
+
+Edit `pipeline_v2/app.py`:
+
+```python
+config = PipelineConfig(
+    yolo_url="http://localhost:8001",
+    ocr_url="http://localhost:8002"
 )
-
-# Check services
-status = pipeline.check_services()
-print(f"Services ready: {all(status.values())}")
-
-# Process image
-result = pipeline.process_image("vietnamese_text.jpg")
-
-print(f"Found {result.total_detections} text regions:")
-for i, det in enumerate(result.detections_with_text, 1):
-    print(f"{i}. '{det.text}' (confidence: {det.confidence:.2f})")
 ```
 
-### Run Examples
+## 📊 API Endpoints
 
+### Pipeline API (Port 8003)
+- `POST /api/v1/process` - Complete pipeline
+- `GET /health` - Service status
+
+### YOLO API (Port 8001)
+- `POST /api/v1/detect` - Text detection
+- `GET /health` - Service status
+
+### VietOCR API (Port 8002)
+- `POST /api/v1/ocr` - OCR on regions
+- `POST /api/v1/ocr/single` - OCR full image
+- `GET /api/v1/health` - Service status
+
+## 📝 Response Format
+
+```json
+{
+  "detections_with_text": [
+    {
+      "bbox": [100, 150, 300, 200],
+      "confidence": 0.95,
+      "class_name": "text",
+      "text": "NGUYỄN LÊ ĐĂNG QUANG"
+    }
+  ],
+  "total_detections": 1,
+  "yolo_detections": 1,
+  "ocr_results": 1,
+  "processing_time": 1.23
+}
+```
+
+## 🎯 Features
+
+- ✅ Vietnamese text detection with YOLO v11
+- ✅ Vietnamese text recognition with VietOCR
+- ✅ Custom trained model support
+- ✅ GPU/CPU auto-detection
+- ✅ RESTful API with FastAPI
+- ✅ Complete pipeline integration
+- ✅ Health monitoring
+- ✅ Processing time tracking
+
+## 🛠️ Troubleshooting
+
+### Port Already in Use
 ```bash
-cd pipeline
-python example.py --mode cli      # Direct service calls
-python example.py --mode api      # Through pipeline API
-python example.py --mode detailed # Show detailed steps
+# Use different port
+python -m uvicorn app.main:app --port 8004
 ```
 
-## Configuration
+### CUDA Not Available
+System automatically falls back to CPU. No action needed.
 
-### Service Ports
+### Model Download Issues
+- Custom model downloads automatically on first run
+- Cached in `OCR_V2_inference/weights/`
+- Check internet connection if download fails
 
-- YOLO Detection: `8000`
-- OCR Recognition: `8001`
-- Pipeline Service: `8002`
-
-## Troubleshooting
-
-### Services Won't Start
-
-**Error:** Port already in use
+### Pillow Compatibility
+VietOCR requires Pillow 9.x:
 ```bash
-# Find and kill process on port
-netstat -ano | findstr :8000
-taskkill /PID <PID> /F
+pip install Pillow==9.5.0
 ```
 
-### No Detections
+## 📚 Documentation
 
-1. Check image quality
-2. Lower confidence threshold (try 0.3)
-3. Verify model is loaded correctly
+- [YOLO Service](YOLO_inference/README.md)
+- [VietOCR Service](OCR_V2_inference/README.md)
+- [Pipeline Service](pipeline_v2/README.md)
 
-### Service Connection Errors
+## 🔐 Service Ports
 
-Check health endpoints:
-```bash
-curl http://localhost:8000/health
-curl http://localhost:8001/health
-curl http://localhost:8002/health
-```
+| Service | Port | Description |
+|---------|------|-------------|
+| YOLO | 8001 | Text detection |
+| VietOCR | 8002 | Text recognition |
+| Pipeline | 8003 | Complete pipeline |
 
-## Models
+## 📦 Technologies
 
-### YOLO Model
-- **Model**: YOLOv11s
-- **Task**: Text region detection
+- **FastAPI** - Web framework
+- **PyTorch** - Deep learning
+- **Ultralytics** - YOLO v11
+- **VietOCR** - Vietnamese OCR
+- **Pydantic** - Data validation
 
-### OCR Model
-- **Architecture**: ResNet + Transformer
-- **Task**: Vietnamese text recognition
+## 🤝 Contributing
 
-## Acknowledgments
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-- YOLO: Ultralytics YOLOv11
-- OCR Model: [OCR_CNN_Vietnamese](https://github.com/BoPDA1607/OCR_CNN_Vietnamese)
+## 📄 License
+
+MIT
+
+## 👥 Authors
+
+- **KhoaS84** - [GitHub](https://github.com/KhoaS84)
+
+## 🙏 Acknowledgments
+
+- Ultralytics for YOLO v11
+- VietOCR team for Vietnamese OCR model
+- FastAPI for excellent web framework
