@@ -4,3 +4,7 @@ python-jose
 pydantic
 passlib
 django
+django-extensions
+psycopg2-binary
+"pydantic[email]"
+python-multipart

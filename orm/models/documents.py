@@ -1,6 +1,6 @@
 from django.db import models
 from django.utils import timezone
-from models.citizens import Citizens
+from orm.models.citizens import Citizens
 
 class Documents(models.Model):
 
