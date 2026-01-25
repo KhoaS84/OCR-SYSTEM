@@ -1,15 +1,15 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { ConfirmationDialog } from '../components/ui/confirmation-dialog';
 import { registerUser } from '../services/auth-service';
@@ -24,7 +24,7 @@ export default function RegisterScreen() {
     password: '',
     confirmPassword: '',
   });
-  
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [showCCCDDialog, setShowCCCDDialog] = useState(false);
@@ -44,7 +44,7 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     // Validate form
     const validationErrors = validateRegisterForm(formData);
-    
+
     if (validationErrors.length > 0) {
       const errorMap: Record<string, string> = {};
       validationErrors.forEach((error) => {
@@ -55,7 +55,7 @@ export default function RegisterScreen() {
     }
 
     setIsLoading(true);
-    
+
     try {
       const response = await registerUser({
         username: formData.username,
@@ -77,7 +77,7 @@ export default function RegisterScreen() {
 
   const handleCCCDConfirm = () => {
     setShowCCCDDialog(false);
-    router.push('/qr-scanner');
+    router.push('/upload-cccd');
   };
 
   const handleCCCDCancel = () => {
