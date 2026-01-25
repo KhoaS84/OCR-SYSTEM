@@ -5,6 +5,7 @@ Configuration settings for OCR V2 service
 from pydantic_settings import BaseSettings
 from typing import List
 import torch
+from pathlib import Path
 
 
 class Settings(BaseSettings):
@@ -27,7 +28,7 @@ class Settings(BaseSettings):
     # Custom model settings
     USE_CUSTOM_MODEL: bool = True
     CUSTOM_MODEL_GDRIVE_ID: str = "17UtJhDv_I5a2AQfU4M7AtnWy2KYiQSMS"
-    CUSTOM_MODEL_PATH: str = "./weights/custom_vietocr_model.pth"
+    CUSTOM_MODEL_PATH: str = str(Path(__file__).parent.parent.parent / "weights" / "custom_vietocr_model.pth")
     
     # CORS
     ALLOWED_ORIGINS: List[str] = ["*"]
