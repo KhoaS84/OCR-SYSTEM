@@ -1,1 +1,17 @@
+# Python
 .venv/
+__pycache__/
+*.pyc
+
+# Node / FE
+node_modules/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
