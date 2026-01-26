@@ -59,7 +59,7 @@ class PipelineConfig(BaseModel):
         description="OCR API base URL"
     )
     conf_threshold: float = Field(
-        default=0.5,
+        default=0.3,
         description="Confidence threshold for detections",
         ge=0.0,
         le=1.0

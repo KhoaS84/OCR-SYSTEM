@@ -23,4 +23,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
+    # Debug logging
+    print(f"DEBUG: Password type: {type(password)}, Password value: {repr(password)}")
+    if not isinstance(password, str):
+        raise ValueError(f"Password must be a string, got {type(password)}")
+    if len(password.encode('utf-8')) > 72:
+        raise ValueError(f"Password is {len(password.encode('utf-8'))} bytes, which exceeds bcrypt's 72-byte limit")
     return pwd_context.hash(password)

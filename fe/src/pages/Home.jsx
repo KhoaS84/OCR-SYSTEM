@@ -1,119 +1,19 @@
+import { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
 import PersonalInfoSection from '../components/PersonalInfoSection';
 import SearchTable from '../components/SearchTable';
 import DetailModal from '../components/DetailModal';
 import useStore from '../store/useStore';
+import { citizensAPI, usersAPI } from '../services/api';
 import '../styles/Home.css';
 
-const SAMPLE_DATA = [
-  {
-    id: 1,
-    name: 'Đặng Minh Tân',
-    cardId: '890012134567',
-    dob: '12/01/1993',
-    gender: 'Male',
-    nationality: 'Vietnam',
-    code: 'A1',
-    birthPlace: 'Thôn 2, xã Minh Tân, Quảng Bình',
-    registrationPlace: 'Quảng Bình',
-    issueDate: '15/06/2020',
-    validity: 'Không thời hạn'
-  },
-  {
-    id: 2,
-    name: 'Hoàng Minh Kiên',
-    cardId: '890123456789',
-    dob: '30/08/1987',
-    gender: 'Male',
-    nationality: 'Vietnam',
-    code: 'B2',
-    birthPlace: 'Thôn 5, xã Hoàng Long, Hà Nội',
-    registrationPlace: 'Hà Nội',
-    issueDate: '20/03/2019',
-    validity: 'Không thời hạn'
-  },
-  {
-    id: 3,
-    name: 'Bùi Thanh Hương',
-    cardId: '567890123456',
-    dob: '25/11/1991',
-    gender: 'Female',
-    nationality: 'Vietnam',
-    code: 'C3',
-    birthPlace: 'Thôn 8, xã Thanh Hương, Hải Phòng',
-    registrationPlace: 'Hải Phòng',
-    issueDate: '10/12/2020',
-    validity: 'Không thời hạn'
-  },
-  {
-    id: 4,
-    name: 'Trần Quốc Trường',
-    cardId: '123456789012',
-    dob: '17/08/1994',
-    gender: 'Male',
-    nationality: 'Vietnam',
-    code: 'D4',
-    birthPlace: 'Thôn 3, xã Quốc Trường, Đà Nẵng',
-    registrationPlace: 'Đà Nẵng',
-    issueDate: '05/09/2021',
-    validity: 'Không thời hạn'
-  },
-  {
-    id: 5,
-    name: 'Ngô Thị Mỹ Ánh',
-    cardId: '902345678901',
-    dob: '10/04/1994',
-    gender: 'Female',
-    nationality: 'Vietnam',
-    code: 'E5',
-    birthPlace: 'Thôn 1, xã Mỹ Ánh, Huế',
-    registrationPlace: 'Huế',
-    issueDate: '22/07/2020',
-    validity: 'Không thời hạn'
-  },
-  {
-    id: 6,
-    name: 'Bùi Thanh Hương',
-    cardId: '567890123456',
-    dob: '25/11/1991',
-    gender: 'Female',
-    nationality: 'Vietnam',
-    code: 'F6',
-    birthPlace: 'Thôn 6, xã Thanh Minh, Nam Định',
-    registrationPlace: 'Nam Định',
-    issueDate: '18/01/2021',
-    validity: 'Không thời hạn'
-  },
-  {
-    id: 7,
-    name: 'Ngô Thị Lan',
-    cardId: '789012345678',
-    dob: '05/02/1990',
-    gender: 'Female',
-    nationality: 'Vietnam',
-    code: 'G7',
-    birthPlace: 'Thôn 9, xã Thị Lan, Nghệ An',
-    registrationPlace: 'Nghệ An',
-    issueDate: '30/11/2019',
-    validity: 'Không thời hạn'
-  },
-  {
-    id: 8,
-    name: 'Phạm Quỳnh Nga',
-    cardId: '456789012345',
-    dob: '08/03/1988',
-    gender: 'Female',
-    nationality: 'Vietnam',
-    code: 'H8',
-    birthPlace: 'Thôn 4, xã Quỳnh Nga, Thái Bình',
-    registrationPlace: 'Thái Bình',
-    issueDate: '12/04/2020',
-    validity: 'Không thời hạn'
-  },
-];
-
 function Home() {
+  const [citizensData, setCitizensData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [currentUser, setCurrentUser] = useState(null);
+  
   // Get state and actions from store
   const {
     activeTab,
@@ -130,37 +30,93 @@ function Home() {
     closeModal,
   } = useStore();
 
-  const filteredData = SAMPLE_DATA.filter(item =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.cardId.includes(searchQuery)
-  );
+  // Load user info
+  useEffect(() => {
+    const loadUserInfo = async () => {
+      try {
+        const userData = await usersAPI.getMe();
+        setCurrentUser(userData);
+      } catch (err) {
+        console.error('Failed to load user info:', err);
+      }
+    };
+    
+    loadUserInfo();
+  }, []);
+
+  // Load citizens data when search or tab changes
+  useEffect(() => {
+    const loadCitizens = async () => {
+      setLoading(true);
+      setError('');
+      
+      try {
+        let data;
+        if (searchQuery.trim()) {
+          // Tìm kiếm theo query
+          data = await citizensAPI.search(searchQuery);
+        } else {
+          // Lấy tất cả (có thể cần thêm API endpoint để lấy all)
+          data = await citizensAPI.search('');
+        }
+        
+        setCitizensData(Array.isArray(data) ? data : []);
+      } catch (err) {
+        setError(err.message || 'Không thể tải dữ liệu');
+        setCitizensData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (activeTab !== 'info') {
+      loadCitizens();
+    }
+  }, [searchQuery, activeTab]);
+
+  const filteredData = citizensData;
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     updateFormData({ [name]: value });
   };
 
-  const handleUpdate = () => {
-    console.log('Cập nhật thông tin:', formData);
-    alert('Đã cập nhật thông tin thành công!');
+  const handleUpdate = async () => {
+    if (!currentUser) return;
+    
+    try {
+      await usersAPI.updateProfile(formData);
+      alert('Đã cập nhật thông tin thành công!');
+    } catch (err) {
+      alert('Cập nhật thất bại: ' + err.message);
+    }
   };
 
-  const handleUpdateCard = () => {
-    console.log('Update card:', selectedPerson);
-    alert('Đã cập nhật thẻ thành công!');
-    closeModal();
+  const handleUpdateCard = async () => {
+    if (!selectedPerson) return;
+    
+    try {
+      await citizensAPI.update(selectedPerson.id, selectedPerson);
+      alert('Đã cập nhật thẻ thành công!');
+      closeModal();
+      // Reload data
+      const data = await citizensAPI.search(searchQuery);
+      setCitizensData(Array.isArray(data) ? data : []);
+    } catch (err) {
+      alert('Cập nhật thất bại: ' + err.message);
+    }
   };
 
   return (
     <div className="home-container">
-      <Header userName="Nguyễn Công Trình" />
+      <Header userName={currentUser?.full_name || currentUser?.username || 'User'} />
 
       <div className="main-content">
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
         <main className="content-area">
           <div className="page-header">
-            <h2>Xin chào <strong>Nguyễn Công Trình</strong></h2>
+            <h2>Xin chào <strong>{currentUser?.full_name || currentUser?.username || 'User'}</strong></h2>
           </div>
 
           {activeTab === 'info' && (
@@ -174,12 +130,18 @@ function Home() {
           )}
 
           {(activeTab === 'cccd' || activeTab === 'insurance' || activeTab === 'license') && (
-            <SearchTable
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              filteredData={filteredData}
-              onRowClick={openModal}
-            />
+            <>
+              {loading && <div style={{ textAlign: 'center', padding: '20px' }}>Đang tải...</div>}
+              {error && <div style={{ textAlign: 'center', padding: '20px', color: 'red' }}>{error}</div>}
+              {!loading && !error && (
+                <SearchTable
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
+                  filteredData={filteredData}
+                  onRowClick={openModal}
+                />
+              )}
+            </>
           )}
         </main>
       </div>

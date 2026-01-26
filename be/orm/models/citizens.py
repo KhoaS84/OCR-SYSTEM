@@ -4,38 +4,30 @@ from orm.models.user import User
 
 class Citizens(models.Model):
     class GenderChoices(models.TextChoices):
-        MALE = 'Nam', 'Nam'
-        FEMALE = 'Nữ', 'Nữ'
-        OTHER = 'Khác', 'Khác'
+        MALE = 'MALE', 'Male'
+        FEMALE = 'FEMALE', 'Female'
         
-    id = models.AutoField(
-        primary_key=True
-        )
+    id = models.AutoField(primary_key=True)
     user = models.ForeignKey(
         User,
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        verbose_name="Người dùng"
     )
-    name = models.CharField(
-        max_length=25,
-        verbose_name="Họ và tên",
-    )
-    date_of_birth = models.DateField(
-        verbose_name="Ngày sinh (DD/MM/YYYY)"
-    )
+    name = models.CharField(max_length=255, verbose_name="Họ và tên")
+    date_of_birth = models.DateField(verbose_name="Ngày sinh", null=True, blank=True)
     gender = models.CharField(
         max_length=10,
         choices=GenderChoices.choices,
-        verbose_name="Giới tính"
+        verbose_name="Giới tính",
+        null=True,
+        blank=True
     )
-
-    nationality = models.CharField(
-        max_length=50,
-        verbose_name="Quốc tịch"
-    )
-    created_at = models.DateTimeField(
-        default=timezone.now,
-        auto_now_add=True,
-    )
+    nationality = models.CharField(max_length=255, verbose_name="Quốc tịch", null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now, auto_now_add=True)
+    
+    class Meta:
+        app_label = 'orm'
+        db_table = 'orm_citizens'
     
     def __str__(self):
         return self.name

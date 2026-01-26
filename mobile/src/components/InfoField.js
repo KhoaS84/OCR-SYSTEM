@@ -3,11 +3,16 @@ import { View, Text, StyleSheet } from 'react-native';
 import { COLORS } from '../constants/colors';
 
 export default function InfoField({ label, value, editable = false }) {
+  // Convert value to string to prevent render errors
+  const displayValue = value != null 
+    ? (typeof value === 'object' ? JSON.stringify(value) : String(value))
+    : 'Chưa có thông tin';
+    
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
       <Text style={[styles.value, editable && styles.valueEditable]}>
-        {value || 'Chưa có thông tin'}
+        {displayValue}
       </Text>
     </View>
   );

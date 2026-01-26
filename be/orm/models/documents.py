@@ -5,12 +5,13 @@ from orm.models.citizens import Citizens
 class Documents(models.Model):
 
     class DocumentsType(models.TextChoices):
-        CCCD = 'cccd', 'CCCD'
-        BHYT = 'bhyt', 'BHYT'
+        CCCD = 'CCCD', 'CCCD'
+        GPLX = 'GPLX', 'GPLX'
+        BHYT = 'BHYT', 'BHYT'
 
     class DocumentStatus(models.TextChoices):
-        PENDING = 'pending', 'Chờ xử lý'
-        VERIFIED = 'verified', 'Đã xác minh'
+        PENDING = 'PENDING', 'Chờ xử lý'
+        VERIFIED = 'VERIFIED', 'Đã xác minh'
 
     id = models.AutoField(
         primary_key=True
@@ -32,10 +33,14 @@ class Documents(models.Model):
     )
 
     issue_date = models.DateField(
-        verbose_name="Ngày cấp"
+        verbose_name="Ngày cấp",
+        null=True,
+        blank=True
     )
     expire_date = models.DateField(
-        verbose_name="Ngày hết hạn"
+        verbose_name="Ngày hết hạn",
+        null=True,
+        blank=True
     )
 
     created_at = models.DateTimeField(
@@ -70,31 +75,57 @@ class CCCD(models.Model):
 
     def __str__(self):
         return self.so_cccd
-    
-class BHYT(models.Model):
 
+class BHYT(models.Model):
     document = models.OneToOneField(
         Documents,
         primary_key=True,
         on_delete=models.CASCADE
     )
     so_bhyt = models.CharField(
-        max_length=20,
-        verbose_name="Số BHYT",
+        max_length=15,
+        verbose_name="Số thẻ BHYT",
         unique=True,
     )
     hospital_code = models.CharField(
-        max_length=100, 
-        verbose_name="Mã bệnh viện",
-    )
-
-    insurane_area = models.CharField(
         max_length=100,
+        verbose_name="Mã nơi đăng ký KCB",
+    )
+    insurance_area = models.CharField(
+        max_length=255,
         verbose_name="Khu vực bảo hiểm",
     )
-    
+
     def __str__(self):
         return self.so_bhyt
+
+class GPLX(models.Model):
+    """Giấy phép lái xe"""
+    document = models.OneToOneField(
+        Documents,
+        primary_key=True,
+        on_delete=models.CASCADE
+    )
+    so_gplx = models.CharField(
+        max_length=20,
+        verbose_name="Số GPLX",
+        unique=True,
+    )
+    hang_gplx = models.CharField(
+        max_length=50,
+        verbose_name="Hạng GPLX",
+        null=True,
+        blank=True
+    )
+    noi_cap = models.CharField(
+        max_length=255,
+        verbose_name="Nơi cấp",
+        null=True,
+        blank=True
+    )
+
+    def __str__(self):
+        return self.so_gplx
     
 # Document images
 class DocumentImages(models.Model):

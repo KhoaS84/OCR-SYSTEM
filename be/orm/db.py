@@ -7,24 +7,21 @@ if not settings.configured:
     settings.configure(
         DEBUG=True,
         DATABASES={
+            # SQLite cho development (không cần cài PostgreSQL)
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': os.path.join(os.path.dirname(__file__), '..', 'db.sqlite3'),
+            }
+            
+            # # PostgreSQL (uncomment nếu muốn dùng PostgreSQL)
             # 'default': {
             #     'ENGINE': 'django.db.backends.postgresql',
-            #     'NAME': 'ID_OCR',
+            #     'NAME': 'OCR_SYSTEM',
             #     'USER': 'postgres',
             #     'PASSWORD': 'postgresql',
             #     'HOST': 'localhost',
             #     'PORT': '5432',
             # }
-            'default': {
-                'ENGINE': 'django.db.backends.postgresql',
-                'NAME': 'OCR_SYSTEM',
-                'USER': 'postgres',
-                'PASSWORD': 'postgresql',
-                'HOST': 'localhost',
-                'PORT': '5432',
-            }
-}
-
         },
         INSTALLED_APPS=[
             'django.contrib.admin',

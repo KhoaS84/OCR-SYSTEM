@@ -1,10 +1,12 @@
 pydantic
 fastapi
-python-jose
-pydantic
-passlib
+uvicorn[standard]
+python-jose[cryptography]
+passlib[bcrypt]
 django
 django-extensions
 psycopg2-binary
-"pydantic[email]"
+pydantic[email]
 python-multipart
+httpx
+python-dotenv

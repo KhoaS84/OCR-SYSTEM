@@ -75,34 +75,25 @@ WSGI_APPLICATION = 'orm.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
+# SQLite cho development (không cần cài PostgreSQL)
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+}
 
+# # PostgreSQL (uncomment nếu muốn dùng PostgreSQL)
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'ID_OCR',
+#         'NAME': 'OCR_SYSTEM',
 #         'USER': 'postgres',
 #         'PASSWORD': 'postgresql',
 #         'HOST': 'localhost',
 #         'PORT': '5432',
 #     }
 # }
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'OCR_SYSTEM',
-        'USER': 'postgres',
-        'PASSWORD': 'postgresql',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
-}
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators

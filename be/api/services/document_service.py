@@ -56,12 +56,31 @@ def create_document_bhyt(user_id: int, image_path: str):
         return None
 
 def get_user_documents(user_id: int) -> List[Documents]:
-    return list(Documents.objects.filter(citizen__user_id=user_id))
+    """Lấy tất cả documents của user thông qua Citizens"""
+    try:
+        # Tìm citizens thuộc user
+        citizens = Citizens.objects.filter(user_id=user_id)
+        
+        # Lấy tất cả documents của các citizens đó
+        documents = []
+        for citizen in citizens:
+            docs = Documents.objects.filter(citizen=citizen)
+            documents.extend(list(docs))
+        
+        return documents
+    except Exception as e:
+        print(f"Error getting user documents: {e}")
+        return []
 
 def delete_document(doc_id: int, user_id: int) -> bool:
+    """Xóa document nếu thuộc về user"""
     try:
-        doc = Documents.objects.get(id=doc_id, citizen__user_id=user_id)
-        doc.delete()
-        return True
+        doc = Documents.objects.get(id=doc_id)
+        
+        # Kiểm tra xem document có thuộc user không
+        if doc.citizen.user_id == user_id:
+            doc.delete()
+            return True
+        return False
     except Documents.DoesNotExist:
         return False

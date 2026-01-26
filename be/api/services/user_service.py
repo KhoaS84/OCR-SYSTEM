@@ -20,10 +20,16 @@ def create_user(user_in: UserCreate):
     if get_user_by_email(user_in.email):
         return None
 
+    # Debug logging
+    print(f"DEBUG: Creating user with email: {user_in.email}")
+    print(f"DEBUG: Password type: {type(user_in.password)}, value: {repr(user_in.password)}")
+    
+    hashed_password = get_password_hash(user_in.password)
+    
     user = User(
         email=user_in.email,
         username=user_in.email,  # dùng email làm username
-        password=get_password_hash(user_in.password)
+        password=hashed_password
     )
     user.save()
     return user

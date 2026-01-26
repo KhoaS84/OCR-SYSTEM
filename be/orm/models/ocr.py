@@ -2,13 +2,13 @@ from django.db import models
 from django.utils import timezone
 from orm.models.documents import Documents
 
-class ocr_jobs (models.Model):
+class ocr_jobs(models.Model):
 
     class ocr_status(models.TextChoices):
-        QUEUED = 'queued', 'Đang chờ'
-        PROCESSING = 'processing', 'Đang xử lý'
-        DONE = 'done', 'Hoàn thành'
-        FAILED = 'failed', 'Thất bại'
+        QUEUED = 'QUEUED', 'Đang chờ'
+        PROCESSING = 'PROCESSING', 'Đang xử lý'
+        DONE = 'DONE', 'Hoàn thành'
+        FAILED = 'FAILED', 'Thất bại'
 
     id = models.AutoField(
         primary_key=True
@@ -39,6 +39,10 @@ class ocr_jobs (models.Model):
         null=True,
         blank=True,
     )
+    
+    class Meta:
+        app_label = 'orm'
+        db_table = 'orm_ocr_jobs'
 
     def __str__(self):
         return str(self.id)
@@ -54,12 +58,24 @@ class ocr_results(models.Model):
     )
 
     field_name = models.CharField(
-        max_length=50,
+        max_length=255,
     )
     raw_text = models.TextField(
     )
-    confidence_score = models.FloatField(
+    confidence = models.DecimalField(
+        max_digits=4,
+        decimal_places=2,
+        null=True,
+        blank=True
     )
+    bounding_box = models.TextField(
+        null=True,
+        blank=True
+    )
+    
+    class Meta:
+        app_label = 'orm'
+        db_table = 'orm_ocr_results'
 
     def __str__(self):
         return f"{self.field_name}: {self.raw_text}"

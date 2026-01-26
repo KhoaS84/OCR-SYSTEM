@@ -18,19 +18,35 @@
     "assetBundlePatterns": [
       "**/*"
     ],
+    "extra": {
+      "apiUrl": "http://192.168.1.6:8000"
+    },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourcompany.ocrmobileapp"
+      "bundleIdentifier": "com.yourcompany.ocrmobileapp",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Ứng dụng cần quyền truy cập camera để chụp ảnh giấy tờ",
+        "NSPhotoLibraryUsageDescription": "Ứng dụng cần quyền truy cập thư viện ảnh để chọn ảnh giấy tờ"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#3b82f6"
       },
-      "package": "com.yourcompany.ocrmobileapp"
+      "package": "com.yourcompany.ocrmobileapp",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-font"
+    ]
   }
 }

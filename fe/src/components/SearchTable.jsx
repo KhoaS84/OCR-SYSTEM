@@ -7,7 +7,7 @@ function SearchTable({ searchQuery, setSearchQuery, filteredData, onRowClick }) 
           <span className="search-icon">🔍</span>
           <input
             type="text"
-            placeholder="Enter ID card, name..."
+            placeholder="Enter name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="search-input"
@@ -21,27 +21,33 @@ function SearchTable({ searchQuery, setSearchQuery, filteredData, onRowClick }) 
             <tr>
               <th>Avatar</th>
               <th>Name</th>
-              <th>Card ID</th>
               <th>Date of Birth</th>
               <th>Gender</th>
               <th>Nationality</th>
             </tr>
           </thead>
           <tbody>
-            {filteredData.map((item) => (
-              <tr key={item.id} onClick={() => onRowClick(item)} className="clickable-row">
-                <td>
-                  <div className="table-avatar">
-                    <img src="https://via.placeholder.com/40" alt="Avatar" />
-                  </div>
+            {filteredData.length === 0 ? (
+              <tr>
+                <td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>
+                  Không có dữ liệu
                 </td>
-                <td>{item.name}</td>
-                <td>{item.cardId}</td>
-                <td>{item.dob}</td>
-                <td>{item.gender}</td>
-                <td>{item.nationality}</td>
               </tr>
-            ))}
+            ) : (
+              filteredData.map((item) => (
+                <tr key={item.id} onClick={() => onRowClick(item)} className="clickable-row">
+                  <td>
+                    <div className="table-avatar">
+                      <img src="https://via.placeholder.com/40" alt="Avatar" />
+                    </div>
+                  </td>
+                  <td>{item.name}</td>
+                  <td>{item.date_of_birth || 'N/A'}</td>
+                  <td>{item.gender || 'N/A'}</td>
+                  <td>{item.nationality || 'N/A'}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
