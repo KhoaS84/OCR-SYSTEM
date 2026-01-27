@@ -65,10 +65,15 @@ class ocr_results(models.Model):
     )
     raw_text = models.TextField(
     )
-    confidence_score = models.FloatField(
+    confidence_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+    )
+    bounding_box = models.JSONField(
     )
 
     def __str__(self):
         return f"{self.field_name}: {self.raw_text}"
+
 
 
