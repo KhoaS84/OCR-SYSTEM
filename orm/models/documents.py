@@ -108,8 +108,11 @@ class DocumentImages(models.Model):
         FRONT = 'front', 'Mặt trước'
         BACK = 'back', 'Mặt sau'
     
-    id = models.AutoField(
-        primary_key=True
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        unique=True,
     )
     document = models.ForeignKey(
         Documents,
@@ -132,4 +135,5 @@ class DocumentImages(models.Model):
 
     def __str__(self):
         return str(self.id)
+
 
