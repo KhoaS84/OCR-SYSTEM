@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.utils import timezone
 from orm.models.user import User
@@ -8,9 +9,12 @@ class Citizens(models.Model):
         FEMALE = 'Nữ', 'Nữ'
         OTHER = 'Khác', 'Khác'
         
-    id = models.AutoField(
-        primary_key=True
-        )
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        unique=True,
+    )
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE
@@ -39,4 +43,5 @@ class Citizens(models.Model):
     
     def __str__(self):
         return self.name
+
 
