@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.utils import timezone
 from orm.models.documents import Documents
@@ -10,8 +11,11 @@ class ocr_jobs (models.Model):
         DONE = 'done', 'Hoàn thành'
         FAILED = 'failed', 'Thất bại'
 
-    id = models.AutoField(
-        primary_key=True
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        unique=True,
     )
     document = models.ForeignKey(
         Documents,
@@ -63,3 +67,4 @@ class ocr_results(models.Model):
 
     def __str__(self):
         return f"{self.field_name}: {self.raw_text}"
+
