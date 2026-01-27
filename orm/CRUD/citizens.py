@@ -5,7 +5,7 @@ from pprint import pprint
 
 def create_citizen(full_name, date_of_birth, gender, nationality, created_at):
     citizen = Citizens(
-        full_name=full_name,
+        name=full_name,
         date_of_birth=date_of_birth,
         gender=gender,
         nationality=nationality,
@@ -40,4 +40,5 @@ def delete_citizen(citizen_id):
         print(connection.queries)
         return True
     except Citizens.DoesNotExist:
+
         return False
