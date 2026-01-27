@@ -306,22 +306,11 @@ export const documentsAPI = {
     return result;
   },
 
-  async getCCCDByCitizen(citizenId) {
-    const headers = await getAuthHeader();
-    const response = await fetch(`${API_BASE_URL}/api/v1/documents/cccd/${citizenId}`, {
-      headers: {
-        ...headers,
-      },
-    });
-    
-    return handleResponse(response);
-  },
-
   async createGPLX(gplxData) {
     console.log('📤 documentsAPI.createGPLX - Input:', JSON.stringify(gplxData, null, 2));
     
     const headers = await getAuthHeader();
-    const response = await fetch(`${API_BASE_URL}/api/v1/documents/gplx/`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/documents/gplx`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -335,49 +324,9 @@ export const documentsAPI = {
     return result;
   },
 
-  async createBHYT(bhytData) {
-    console.log('📤 documentsAPI.createBHYT - Input:', JSON.stringify(bhytData, null, 2));
-    
-    const headers = await getAuthHeader();
-    const response = await fetch(`${API_BASE_URL}/api/v1/documents/bhyt/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...headers,
-      },
-      body: JSON.stringify(bhytData),
-    });
-    
-    const result = await handleResponse(response);
-    console.log('✅ documentsAPI.createBHYT - Response:', JSON.stringify(result, null, 2));
-    return result;
-  },
-
   async getCCCDByCitizen(citizenId) {
     const headers = await getAuthHeader();
     const response = await fetch(`${API_BASE_URL}/api/v1/documents/cccd/${citizenId}`, {
-      headers: {
-        ...headers,
-      },
-    });
-    
-    return handleResponse(response);
-  },
-
-  async getGPLXByCitizen(citizenId) {
-    const headers = await getAuthHeader();
-    const response = await fetch(`${API_BASE_URL}/api/v1/documents/gplx/${citizenId}`, {
-      headers: {
-        ...headers,
-      },
-    });
-    
-    return handleResponse(response);
-  },
-
-  async getBHYTByCitizen(citizenId) {
-    const headers = await getAuthHeader();
-    const response = await fetch(`${API_BASE_URL}/api/v1/documents/bhyt/${citizenId}`, {
       headers: {
         ...headers,
       },
@@ -394,9 +343,7 @@ export const documentsAPI = {
       },
     });
     
-    const result = await handleResponse(response);
-    console.log('📋 documentsAPI.getAll - Response:', JSON.stringify(result, null, 2));
-    return result;
+    return handleResponse(response);
   },
 
   async getById(id) {

@@ -14,7 +14,7 @@ import DocumentHeader from '../components/DocumentHeader';
 import InfoField from '../components/InfoField';
 import CustomButton from '../components/CustomButton';
 import { COLORS } from '../constants/colors';
-import { documentsAPI } from '../services/api';
+import { citizensAPI } from '../services/api';
 
 export default function GPLXDetailScreen({ navigation, route }) {
   const [gplxData, setGplxData] = useState(null);
@@ -50,23 +50,29 @@ export default function GPLXDetailScreen({ navigation, route }) {
   const loadGPLXData = async () => {
     try {
       setLoading(true);
-      console.log('🔍 Loading GPLX data...');
+      console.log('🔍 Loading citizen data for GPLX...');
       
       const citizenId = route.params?.citizenId;
       console.log('🔍 Citizen ID from params:', citizenId);
       
       if (citizenId) {
-        console.log('🔍 Fetching GPLX by citizen ID:', citizenId);
-        const data = await documentsAPI.getGPLXByCitizen(citizenId);
-        console.log('✅ Got GPLX data:', data);
+        console.log('🔍 Fetching citizen by ID:', citizenId);
+        const data = await citizensAPI.getById(citizenId);
+        console.log('✅ Got citizen data:', data);
         setGplxData(data);
       } else {
-        console.error('❌ No citizen ID provided');
-        Alert.alert('Lỗi', 'Không có thông tin citizen ID');
+        console.log('🔍 No citizen ID, fetching all citizens...');
+        const citizens = await citizensAPI.search('');
+        console.log('✅ Got citizens list:', citizens);
+        
+        if (citizens && citizens.length > 0) {
+          console.log('✅ Using first citizen:', citizens[0]);
+          setGplxData(citizens[0]);
+        }
       }
     } catch (error) {
-      console.error('❌ Error loading GPLX data:', error);
-      Alert.alert('Lỗi', 'Không thể tải thông tin GPLX: ' + error.message);
+      console.error('❌ Error loading citizen data:', error);
+      Alert.alert('Lỗi', 'Không thể tải thông tin: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -139,7 +145,7 @@ export default function GPLXDetailScreen({ navigation, route }) {
           <View style={styles.gplxTitleSection}>
             <Text style={styles.gplxTitle}>GIẤY PHÉP LÁI XE</Text>
             <Text style={styles.gplxSubtitle}>DRIVER'S LICENSE</Text>
-            <Text style={styles.licenseNumber}>Số/No: {gplxData.so_gplx || 'N/A'}</Text>
+            <Text style={styles.licenseNumber}>Số/No: {gplxData.license_number || 'N/A'}</Text>
           </View>
 
           {/* Nội dung chính */}
@@ -155,32 +161,32 @@ export default function GPLXDetailScreen({ navigation, route }) {
             <View style={styles.rightColumn}>
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Họ tên/Full name:</Text>
-                <Text style={styles.infoValueBold}>{gplxData.citizen_name || gplxData.name || 'N/A'}</Text>
+                <Text style={styles.infoValueBold}>{gplxData.name || 'N/A'}</Text>
               </View>
               
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Ngày sinh/Date of Birth:</Text>
-                <Text style={styles.infoValue}>{formatDateToVietnamese(gplxData.citizen_dob || gplxData.date_of_birth)}</Text>
+                <Text style={styles.infoValue}>{gplxData.dob || 'N/A'}</Text>
               </View>
               
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Quốc tịch/Nationality:</Text>
-                <Text style={styles.infoValue}>{gplxData.citizen_nationality || gplxData.nationality || 'VIỆT NAM'}</Text>
+                <Text style={styles.infoValue}>{gplxData.nationality || 'VIỆT NAM'}</Text>
               </View>
               
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Nơi cư trú/Address:</Text>
-                <Text style={styles.infoValue}>Chưa có thông tin</Text>
+                <Text style={styles.infoValue}>{gplxData.origin_place || 'N/A'}</Text>
               </View>
               
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Nơi cấp/Place of issue:</Text>
-                <Text style={styles.infoValue}>{gplxData.noi_cap || 'N/A'}</Text>
+                <Text style={styles.infoValue}>{gplxData.place_of_issue || 'N/A'}</Text>
               </View>
               
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Ngày cấp/Date of issue:</Text>
-                <Text style={styles.infoValue}>{formatDateToVietnamese(gplxData.issue_date)}</Text>
+                <Text style={styles.infoValue}>{gplxData.issue_date || 'N/A'}</Text>
               </View>
             </View>
           </View>
@@ -189,11 +195,11 @@ export default function GPLXDetailScreen({ navigation, route }) {
           <View style={styles.gplxFooter}>
             <View style={styles.footerLeft}>
               <Text style={styles.footerLabel}>Hạng/Class:</Text>
-              <Text style={styles.footerValueBold}>{gplxData.hang_gplx || 'N/A'}</Text>
+              <Text style={styles.footerValueBold}>{gplxData.license_class || 'N/A'}</Text>
             </View>
             <View style={styles.footerRight}>
               <Text style={styles.footerLabel}>Có giá trị đến/Expires:</Text>
-              <Text style={styles.footerValue}>{formatDateToVietnamese(gplxData.expire_date) || 'Không thời hạn'}</Text>
+              <Text style={styles.footerValue}>{gplxData.expiry_date || 'Không thời hạn'}</Text>
             </View>
           </View>
         </View>

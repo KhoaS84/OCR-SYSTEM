@@ -14,7 +14,7 @@ import DocumentHeader from '../components/DocumentHeader';
 import InfoField from '../components/InfoField';
 import CustomButton from '../components/CustomButton';
 import { COLORS } from '../constants/colors';
-import { documentsAPI } from '../services/api';
+import { citizensAPI } from '../services/api';
 
 export default function BHYTDetailScreen({ navigation, route }) {
   const [bhytData, setBhytData] = useState(null);
@@ -50,23 +50,29 @@ export default function BHYTDetailScreen({ navigation, route }) {
   const loadBHYTData = async () => {
     try {
       setLoading(true);
-      console.log('🔍 Loading BHYT data...');
+      console.log('🔍 Loading citizen data for BHYT...');
       
       const citizenId = route.params?.citizenId;
       console.log('🔍 Citizen ID from params:', citizenId);
       
       if (citizenId) {
-        console.log('🔍 Fetching BHYT by citizen ID:', citizenId);
-        const data = await documentsAPI.getBHYTByCitizen(citizenId);
-        console.log('✅ Got BHYT data:', data);
+        console.log('🔍 Fetching citizen by ID:', citizenId);
+        const data = await citizensAPI.getById(citizenId);
+        console.log('✅ Got citizen data:', data);
         setBhytData(data);
       } else {
-        console.error('❌ No citizen ID provided');
-        Alert.alert('Lỗi', 'Không có thông tin citizen ID');
+        console.log('🔍 No citizen ID, fetching all citizens...');
+        const citizens = await citizensAPI.search('');
+        console.log('✅ Got citizens list:', citizens);
+        
+        if (citizens && citizens.length > 0) {
+          console.log('✅ Using first citizen:', citizens[0]);
+          setBhytData(citizens[0]);
+        }
       }
     } catch (error) {
-      console.error('❌ Error loading BHYT data:', error);
-      Alert.alert('Lỗi', 'Không thể tải thông tin BHYT: ' + error.message);
+      console.error('❌ Error loading citizen data:', error);
+      Alert.alert('Lỗi', 'Không thể tải thông tin: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -131,15 +137,12 @@ export default function BHYTDetailScreen({ navigation, route }) {
         </View>
 
         <View style={styles.detailsCard}>
-          <InfoField label="Số thẻ BHYT" value={bhytData.so_bhyt || 'N/A'} />
-          <InfoField label="Họ và tên" value={bhytData.citizen_name || bhytData.name || 'N/A'} />
-          <InfoField label="Ngày sinh" value={formatDateToVietnamese(bhytData.citizen_dob || bhytData.date_of_birth)} />
-          <InfoField label="Giới tính" value={formatGenderToVietnamese(bhytData.citizen_gender || bhytData.gender)} />
-          <InfoField label="Quốc tịch" value={bhytData.citizen_nationality || bhytData.nationality || 'Việt Nam'} />
-          <InfoField label="Mã CSKCB" value={bhytData.hospital_code || 'N/A'} />
-          <InfoField label="Khu vực bảo hiểm" value={bhytData.insurance_area || 'N/A'} />
-          <InfoField label="Ngày cấp" value={formatDateToVietnamese(bhytData.issue_date)} />
-          <InfoField label="Ngày hết hạn" value={formatDateToVietnamese(bhytData.expire_date)} />
+          <InfoField label="ID" value={bhytData.id || 'N/A'} />
+          <InfoField label="Họ và tên" value={bhytData.name || 'N/A'} />
+          <InfoField label="Ngày sinh" value={formatDateToVietnamese(bhytData.date_of_birth)} />
+          <InfoField label="Giới tính" value={formatGenderToVietnamese(bhytData.gender)} />
+          <InfoField label="Quốc tịch" value={bhytData.nationality || 'Việt Nam'} />
+          <InfoField label="User ID" value={bhytData.user_id || 'N/A'} />
         </View>
 
         <View style={styles.actionButtons}>

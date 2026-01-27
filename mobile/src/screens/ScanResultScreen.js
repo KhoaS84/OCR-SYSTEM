@@ -157,16 +157,6 @@ export default function ScanResultScreen({ navigation, route }) {
       
       console.log('✅ OCR result received:', JSON.stringify(result, null, 2));
       
-      // Log chi tiết các detection
-      if (result.detections_with_text && result.detections_with_text.length > 0) {
-        console.log('🔍 Detailed detections:');
-        result.detections_with_text.forEach((detection, index) => {
-          console.log(`  ${index + 1}. Class: ${detection.class_name}, Text: "${detection.text}", Confidence: ${detection.confidence}`);
-        });
-      } else {
-        console.log('⚠️ No detections found');
-      }
-      
       // Parse detections_with_text thành extractedData
       const extractedData = {};
       if (result.detections_with_text && Array.isArray(result.detections_with_text)) {
@@ -404,49 +394,29 @@ export default function ScanResultScreen({ navigation, route }) {
         return null;
       };
       
-      // Với schema mới: 
-      // - CCCD: Tạo citizen mới
-      // - GPLX/BHYT: Dùng citizen từ CCCD đã có
+      // Với schema mới: chỉ lưu vào Citizens với user_id
+      // CCCD, GPLX, BHYT đều được lưu vào Citizens trước, sau đó tạo Documents nếu cần
       
-      let citizenId;
+      const rawDob = extractedData['Ngày sinh'] || extractedData['Ngày tháng năm sinh'] || extractedData['dob'];
+      const rawGender = extractedData['Giới tính'] || extractedData['gender'];
       
-      if (docType === 'CCCD') {
-        // CCCD: Tạo citizen mới
-        const rawDob = extractedData['Ngày sinh'] || extractedData['Ngày tháng năm sinh'] || extractedData['dob'];
-        const rawGender = extractedData['Giới tính'] || extractedData['gender'];
-        
-        const citizenData = {
-          user_id: currentUser.id,
-          name: extractedData['Họ và tên'] || extractedData['name'] || '',
-          date_of_birth: convertDateFormat(rawDob),
-          gender: convertGender(rawGender),
-          nationality: extractedData['Quốc tịch'] || extractedData['nationality'] || 'Việt Nam'
-        };
+      const citizenData = {
+        user_id: currentUser.id,
+        name: extractedData['Họ và tên'] || extractedData['name'] || '',
+        date_of_birth: convertDateFormat(rawDob),
+        gender: convertGender(rawGender),
+        nationality: extractedData['Quốc tịch'] || extractedData['nationality'] || 'Việt Nam'
+      };
 
-        console.log('💾 Raw DOB:', rawDob, '-> Converted:', citizenData.date_of_birth);
-        console.log('💾 Raw Gender:', rawGender, '-> Converted:', citizenData.gender);
-        console.log('💾 Citizen data to save:', citizenData);
-        
-        const savedCitizen = await citizensAPI.create(citizenData);
-        console.log('✅ Saved citizen:', savedCitizen);
-        citizenId = savedCitizen.id;
-      } else {
-        // GPLX/BHYT: Lấy citizen từ CCCD đã có
-        console.log('💾 Getting existing citizen from CCCD...');
-        const allDocs = await documentsAPI.getAll();
-        const cccdDoc = allDocs?.find(doc => doc.type === 'CCCD');
-        
-        if (!cccdDoc) {
-          Alert.alert('Lỗi', 'Bạn cần quét CCCD trước khi quét ' + docType);
-          return;
-        }
-        
-        citizenId = cccdDoc.citizen_id;
-        console.log('✅ Using existing citizen ID:', citizenId);
-      }
+      console.log('💾 Raw DOB:', rawDob, '-> Converted:', citizenData.date_of_birth);
+      console.log('💾 Raw Gender:', rawGender, '-> Converted:', citizenData.gender);
+      console.log('💾 Citizen data to save:', citizenData);
+      
+      const savedCitizen = await citizensAPI.create(citizenData);
+      console.log('✅ Saved citizen:', savedCitizen);
       
       // Nếu là CCCD, tạo thêm Documents + CCCD record
-      if (docType === 'CCCD' && citizenId) {
+      if (docType === 'CCCD' && savedCitizen && savedCitizen.id) {
         try {
           console.log('💾 Preparing CCCD document data...');
           console.log('💾 All extractedData keys:', Object.keys(extractedData));
@@ -476,7 +446,7 @@ export default function ScanResultScreen({ navigation, route }) {
           console.log('💾 Converted expire_date:', expireDate);
           
           const cccdData = {
-            citizen_id: citizenId,
+            citizen_id: savedCitizen.id,
             so_cccd: extractedData['Số CCCD'] || extractedData['id'] || '',
             origin_place: originPlace || 'N/A',
             current_place: currentPlace || 'N/A',
@@ -498,7 +468,7 @@ export default function ScanResultScreen({ navigation, route }) {
       }
       
       // Nếu là GPLX, tạo thêm Documents + GPLX record
-      if (docType === 'GPLX' && citizenId) {
+      if (docType === 'GPLX' && savedCitizen && savedCitizen.id) {
         try {
           console.log('💾 Preparing GPLX document data...');
           
@@ -506,7 +476,7 @@ export default function ScanResultScreen({ navigation, route }) {
           const expireDate = convertDateFormat(extractedData['Ngày thẻ hết hạn'] || extractedData['expire_date'] || extractedData['expiry_date']);
           
           const gplxData = {
-            citizen_id: citizenId,
+            citizen_id: savedCitizen.id,
             so_gplx: extractedData['Mã thẻ'] || extractedData['id'] || '',
             hang_gplx: extractedData['Hạng thẻ'] || extractedData['level'] || extractedData['class'] || '',
             noi_cap: extractedData['Nơi cấp'] || extractedData['place_of_issue'] || extractedData['iplace'] || '',
@@ -526,7 +496,7 @@ export default function ScanResultScreen({ navigation, route }) {
       }
       
       // Nếu là BHYT, tạo thêm Documents + BHYT record
-      if (docType === 'BHYT' && citizenId) {
+      if (docType === 'BHYT' && savedCitizen && savedCitizen.id) {
         try {
           console.log('💾 Preparing BHYT document data...');
           
@@ -534,7 +504,7 @@ export default function ScanResultScreen({ navigation, route }) {
           const expireDate = convertDateFormat(extractedData['Giá trị đến'] || extractedData['expire_date']);
           
           const bhytData = {
-            citizen_id: citizenId,
+            citizen_id: savedCitizen.id,
             so_bhyt: extractedData['Số thẻ BHYT'] || extractedData['Số BHYT'] || extractedData['id'] || '',
             hospital_code: extractedData['Mã nơi KCB'] || extractedData['hospital_code'] || 'N/A',
             insurance_area: extractedData['Khu vực'] || extractedData['insurance_area'] || 'N/A',
@@ -553,12 +523,14 @@ export default function ScanResultScreen({ navigation, route }) {
         }
       }
       
-      console.log('✅ Save complete! Document type:', docType, 'Citizen ID:', citizenId);
       Alert.alert('Thành công', `Đã lưu thông tin ${docType}!`, [
-        { text: 'OK', onPress: () => {
-          console.log('📍 Navigating back to Home after save');
-          navigation.navigate('Home');
-        }}
+        { 
+          text: 'OK', 
+          onPress: () => {
+            // Navigate back với flag refresh để HomeScreen reload data
+            navigation.navigate('Home', { refresh: Date.now() });
+          }
+        }
       ]);
     } catch (error) {
       console.error('❌ Save error:', error);
@@ -775,31 +747,15 @@ export default function ScanResultScreen({ navigation, route }) {
             <Text style={styles.editHint}>
               * Nhấn vào các trường để chỉnh sửa nếu cần
             </Text>
-            {Object.keys(extractedData).length === 0 ? (
-              <View>
-                <Text style={styles.noDataText}>
-                  ⚠️ Không tìm thấy thông tin. Vui lòng quét lại hoặc chọn ảnh rõ hơn.
-                </Text>
-                <Text style={styles.debugText}>
-                  {`Debug: YOLO detections = ${scanResult?.raw?.yolo_detections || 0}, OCR results = ${scanResult?.raw?.ocr_results || 0}`}
-                </Text>
-                {docType === 'GPLX' && (
-                  <Text style={styles.debugText}>
-                    💡 Mẹo: GPLX cần ảnh rõ, đủ sáng và không bị mờ
-                  </Text>
-                )}
-              </View>
-            ) : (
-              Object.entries(extractedData).map(([key, value], index) => (
-                <InfoField 
-                  key={index} 
-                  label={key} 
-                  value={value || ''} 
-                  editable 
-                  onChangeText={(newValue) => updateField(key, newValue)}
-                />
-              ))
-            )}
+            {Object.entries(extractedData).map(([key, value], index) => (
+              <InfoField 
+                key={index} 
+                label={key} 
+                value={value || ''} 
+                editable 
+                onChangeText={(newValue) => updateField(key, newValue)}
+              />
+            ))}
           </View>
 
           <View style={styles.actionButtons}>
@@ -982,23 +938,6 @@ const styles = StyleSheet.create({
     color: COLORS.gray[500],
     fontStyle: 'italic',
     marginBottom: 12
-  },
-  noDataText: {
-    fontSize: 14,
-    color: COLORS.warning,
-    textAlign: 'center',
-    padding: 20,
-    backgroundColor: '#FFF3CD',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FFE69C'
-  },
-  debugText: {
-    fontSize: 12,
-    color: COLORS.gray[500],
-    textAlign: 'center',
-    marginTop: 8,
-    fontFamily: 'monospace'
   },
   actionButtons: {
     paddingTop: 0
