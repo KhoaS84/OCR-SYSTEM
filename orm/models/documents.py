@@ -46,7 +46,7 @@ class Documents(models.Model):
     def __str__(self):
         return str(self.id)
 
-# CCCD & BHYT
+# CCCD
 class CCCD(models.Model):
 
     document = models.OneToOneField(
@@ -70,7 +70,8 @@ class CCCD(models.Model):
 
     def __str__(self):
         return self.so_cccd
-    
+
+# BHYT    
 class BHYT(models.Model):
 
     document = models.OneToOneField(
@@ -95,7 +96,9 @@ class BHYT(models.Model):
     
     def __str__(self):
         return self.so_bhyt
-    
+
+# GPLX
+
 # Document images
 class DocumentImages(models.Model):
 
