@@ -17,21 +17,21 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import InfoField from '../components/InfoField';
 import CustomButton from '../components/CustomButton';
 import { COLORS } from '../constants/colors';
-import { ocrAPI, citizensAPI, usersAPI, documentsAPI } from '../services/api';
+import { ocrAPI, citizensAPI, authAPI, documentsAPI } from '../services/api';
 
 export default function ScanResultScreen({ navigation, route }) {
   const [scanResult, setScanResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [extractedData, setExtractedData] = useState({});
   const docType = route.params?.docType || 'CCCD';
-  
+
   // For CCCD dual-sided scanning
-  const [frontImage, setFrontImage] = useState(null);
-  const [backImage, setBackImage] = useState(null);
   const [currentSide, setCurrentSide] = useState('front'); // 'front' or 'back'
   const [frontData, setFrontData] = useState({});
   const [backData, setBackData] = useState({});
-  
+  // Dùng ref để lưu frontUri, tránh bất đồng bộ state
+  const frontUriRef = useRef(null);
+
   // Camera states
   const [showCamera, setShowCamera] = useState(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
@@ -146,28 +146,260 @@ export default function ScanResultScreen({ navigation, route }) {
 
   const processImage = async (imageUri, side = 'front') => {
     console.log('🔄 Starting processImage for:', imageUri, 'side:', side);
-    
     try {
       setLoading(true);
       console.log('⏳ Set loading to true');
+
+      if (docType === 'CCCD') {
+        if (side === 'front') {
+          frontUriRef.current = imageUri;
+          console.log('✅ Front side saved, waiting for back side');
+          setLoading(false);
+          Alert.alert(
+            'Mặt trước đã quét ✓',
+            'Vui lòng quét mặt sau của CCCD để hoàn thành',
+            [
+              {
+                text: 'Chụp ảnh',
+                onPress: () => {
+                  setTimeout(() => handleTakePhoto('back'), 300);
+                }
+              },
+              {
+                text: 'Chọn từ thư viện',
+                onPress: () => {
+                  setTimeout(() => handlePickImage('back'), 300);
+                }
+              }
+            ]
+          );
+          return;
+        } else if (side === 'back') {
+          // Chỉ upload khi chắc chắn đã có cả 2 ảnh
+          if (!frontUriRef.current) {
+            setLoading(false);
+            Alert.alert('Thiếu ảnh mặt trước', 'Vui lòng quét lại mặt trước CCCD!');
+            return;
+          }
+          // Tiến hành upload
+          console.log('📤 Uploading images...');
+          let documentId;
+          const uploadResult = await documentsAPI.uploadCCCD(frontUriRef.current, imageUri);
+          console.log('✅ CCCD uploaded:', uploadResult);
+          documentId = uploadResult.id;
+          // Reset ref sau khi upload xong
+          frontUriRef.current = null;
+          
+          // Gọi OCR process
+          console.log('🔄 Processing OCR for document:', documentId);
+          const processResult = await ocrAPI.processDocument(documentId);
+          console.log('✅ OCR job created:', processResult);
+          const jobId = processResult.id;
+          
+          // Poll status cho đến khi completed
+          console.log('⏳ Polling OCR status for job:', jobId);
+          let status = 'PENDING';
+          let attempts = 0;
+          const maxAttempts = 30;
+          
+          while (attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            attempts++;
+            const statusResult = await ocrAPI.getJobStatus(jobId);
+            status = statusResult.status;
+            console.log(`📊 OCR Status (${attempts}/${maxAttempts}):`, status);
+            
+            if (status === 'failed' || status === 'FAILED') {
+              throw new Error('OCR processing failed');
+            }
+            if (status === 'done' || status === 'DONE') {
+              console.log('✅ OCR processing completed!');
+              break;
+            }
+          }
+          
+          if (status !== 'done' && status !== 'DONE') {
+            throw new Error('OCR processing timeout');
+          }
+          
+          // Lấy kết quả OCR
+          console.log('📥 Getting OCR results...');
+          const result = await ocrAPI.getResults(documentId);
+          console.log('✅ OCR result received:', JSON.stringify(result, null, 2));
+          
+          // Parse OCR results
+          const extractedData = {};
+          if (Array.isArray(result)) {
+            result.forEach(item => {
+              const fieldName = item.field_name || 'unknown';
+              const fieldValue = item.raw_text || '';
+              
+              const cccdFieldMapping = {
+                'name': 'Họ và tên',
+                'id': 'Số CCCD',
+                'id_number': 'Số CCCD',
+                'dob': 'Ngày sinh',
+                'gender': 'Giới tính',
+                'nationality': 'Quốc tịch',
+                'origin_place1': 'Quê quán (1)',
+                'origin_place2': 'Quê quán (2)',
+                'current_place1': 'Nơi thường trú (1)',
+                'current_place2': 'Nơi thường trú (2)',
+                'expire_date': 'Có giá trị đến',
+                'cccd': 'Loại giấy tờ'
+              };
+              
+              const displayName = cccdFieldMapping[fieldName] || fieldName;
+              extractedData[displayName] = fieldValue;
+            });
+          }
+          
+          console.log('✅ Parsed extracted data:', extractedData);
+          
+          const scanResultData = {
+            documentType: docType,
+            documentId: documentId,
+            confidence: result.length > 0 ? Math.round((result[0].confidence_score || 0) * 100) : 0,
+            extractedData: extractedData,
+            raw: result,
+          };
+          
+          setScanResult(scanResultData);
+          setExtractedData(extractedData);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Nếu là BHYT hoặc loại giấy tờ khác
+      if (docType === 'BHYT') {
+        console.log('📤 Uploading images...');
+          let documentId; // Declare documentId here to avoid ReferenceError
+        const uploadResult = await documentsAPI.uploadBHYT(imageUri);
+        console.log('✅ BHYT uploaded:', uploadResult);
+        documentId = uploadResult.id;
+        // ...phần xử lý OCR giữ nguyên...
+        // Gọi OCR process
+        console.log('🔄 Processing OCR for document:', documentId);
+        const processResult = await ocrAPI.processDocument(documentId);
+        console.log('✅ OCR job created:', processResult);
+        const jobId = processResult.id; // Backend trả về job object với field "id"
+        // Poll status cho đến khi completed
+        console.log('⏳ Polling OCR status for job:', jobId);
+        let status = 'PENDING';
+        let attempts = 0;
+        const maxAttempts = 30; // 30 giây
+        while (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Chờ 1 giây
+          attempts++;
+          const statusResult = await ocrAPI.getJobStatus(jobId);
+          status = statusResult.status;
+          console.log(`📊 OCR Status (${attempts}/${maxAttempts}):`, status);
+          if (status === 'failed' || status === 'FAILED') {
+            throw new Error('OCR processing failed');
+          }
+          if (status === 'done' || status === 'DONE') {
+            console.log('✅ OCR processing completed!');
+            break;
+          }
+        }
+        if (status !== 'done' && status !== 'DONE') {
+          throw new Error('OCR processing timeout');
+        }
+        // Lấy kết quả OCR
+        console.log('📥 Getting OCR results...');
+        const result = await ocrAPI.getResults(documentId);
+        console.log('✅ OCR result received:', JSON.stringify(result, null, 2));
+        // Parse OCR results - backend trả về array [{field_name, raw_text, confidence_score}]
+        const extractedData = {};
+        if (Array.isArray(result)) {
+          result.forEach(item => {
+            const fieldName = item.field_name || 'unknown';
+            const fieldValue = item.raw_text || '';
+            // Map field names cho BHYT
+            const bhytFieldMapping = {
+              'bhyt': 'Loại giấy tờ',
+              'id': 'Số BHYT',
+              'name': 'Họ và tên',
+              'dob': 'Ngày sinh',
+              'gender': 'Giới tính',
+              'ihos': 'Bệnh viện',
+              'hospital': 'Bệnh viện',
+              'iplace': 'Nơi đăng ký KCB',
+              'insurance_place': 'Nơi đăng ký KCB',
+              'issue_date': 'Ngày cấp',
+              'expire_date': 'Có giá trị đến',
+            };
+            const displayName = bhytFieldMapping[fieldName] || fieldName;
+            extractedData[displayName] = fieldValue;
+          });
+        }
+        console.log('✅ Parsed extracted data:', extractedData);
+        // Tạo scanResult với document ID
+        const scanResultData = {
+          documentType: docType,
+          documentId: documentId, // Lưu document ID để dùng khi save
+          confidence: result.length > 0 ? Math.round((result[0].confidence_score || 0) * 100) : 0,
+          extractedData: extractedData,
+          raw: result,
+        };
+        setScanResult(scanResultData);
+        setExtractedData(extractedData);
+        setLoading(false);
+        return;
+      }
       
-      // Gọi API OCR để extract thông tin
-      console.log('📡 Calling ocrAPI.extractText...');
-      const result = await ocrAPI.extractText(imageUri);
+      // Gọi OCR process
+      console.log('🔄 Processing OCR for document:', documentId);
+      const processResult = await ocrAPI.processDocument(documentId);
+      console.log('✅ OCR job created:', processResult);
+      const jobId = processResult.id; // Backend trả về job object với field "id"
       
+      // Poll status cho đến khi completed
+      console.log('⏳ Polling OCR status for job:', jobId);
+      let status = 'PENDING';
+      let attempts = 0;
+      const maxAttempts = 30; // 30 giây
+      
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Chờ 1 giây
+        attempts++;
+        
+        const statusResult = await ocrAPI.getJobStatus(jobId);
+        status = statusResult.status;
+        console.log(`📊 OCR Status (${attempts}/${maxAttempts}):`, status);
+        
+        if (status === 'failed' || status === 'FAILED') {
+          throw new Error('OCR processing failed');
+        }
+        
+        if (status === 'done' || status === 'DONE') {
+          console.log('✅ OCR processing completed!');
+          break;
+        }
+      }
+      
+      if (status !== 'done' && status !== 'DONE') {
+        throw new Error('OCR processing timeout');
+      }
+      
+      // Lấy kết quả OCR
+      console.log('📥 Getting OCR results...');
+      const result = await ocrAPI.getResults(documentId);
       console.log('✅ OCR result received:', JSON.stringify(result, null, 2));
       
-      // Parse detections_with_text thành extractedData
+      // Parse OCR results - backend trả về array [{field_name, raw_text, confidence_score}]
       const extractedData = {};
-      if (result.detections_with_text && Array.isArray(result.detections_with_text)) {
-        result.detections_with_text.forEach(detection => {
-          const fieldName = detection.class_name || 'unknown';
-          const fieldValue = detection.text || '';
+      if (Array.isArray(result)) {
+        result.forEach(item => {
+          const fieldName = item.field_name || 'unknown';
+          const fieldValue = item.raw_text || '';
           
           // Map field names sang tiếng Việt cho CCCD
           const cccdFieldMapping = {
             'name': 'Họ và tên',
             'id': 'Số CCCD',
+            'id_number': 'Số CCCD',
             'dob': 'Ngày sinh',
             'gender': 'Giới tính',
             'nationality': 'Quốc tịch',
@@ -178,136 +410,57 @@ export default function ScanResultScreen({ navigation, route }) {
             'expire_date': 'Có giá trị đến',
             'cccd': 'Loại giấy tờ'
           };
-          
-          // Map field names cho GPLX
-          const gplxFieldMapping = {
-            'gplx': 'Loại thẻ',
-            'id': 'Mã thẻ',
+
+          // Map field names cho BHYT
+          const bhytFieldMapping = {
+            'bhyt': 'Loại giấy tờ',
+            'id': 'Số BHYT',
             'name': 'Họ và tên',
-            'dob': 'Ngày tháng năm sinh',
-            'nationality': 'Quốc tịch',
-            'origin_place': 'Nơi cư trú',
-            'origin_place1': 'Nơi cư trú',
-            'origin_place2': 'Nơi cư trú',
-            'address': 'Nơi cư trú',
-            'iplace': 'Nơi cấp',
-            'place_of_issue': 'Nơi cấp',
-            'iday': 'Ngày cấp (ngày)',
-            'imonth': 'Ngày cấp (tháng)',
-            'iyear': 'Ngày cấp (năm)',
+            'dob': 'Ngày sinh',
+            'gender': 'Giới tính',
+            'ihos': 'Bệnh viện',
+            'hospital': 'Bệnh viện',
+            'iplace': 'Nơi đăng ký KCB',
+            'insurance_place': 'Nơi đăng ký KCB',
             'issue_date': 'Ngày cấp',
-            'level': 'Hạng thẻ',
-            'class': 'Hạng thẻ',
-            'expire_date': 'Ngày thẻ hết hạn',
-            'expiry_date': 'Ngày thẻ hết hạn'
+            'expire_date': 'Có giá trị đến',
           };
           
           // Chọn mapping dựa trên docType
-          const fieldMapping = docType === 'GPLX' ? gplxFieldMapping : cccdFieldMapping;
+          let fieldMapping = cccdFieldMapping;
+          if (docType === 'BHYT') fieldMapping = bhytFieldMapping;
           
           const displayName = fieldMapping[fieldName] || fieldName;
           extractedData[displayName] = fieldValue;
         });
       }
       
-      console.log('✅ Parsed extracted data for', side, ':', extractedData);
+      console.log('✅ Parsed extracted data:', extractedData);
       
-      // Lưu theo side (front/back) cho CCCD
-      if (docType === 'CCCD') {
-        if (side === 'front') {
-          setFrontImage(imageUri);
-          setFrontData(extractedData);
-          setCurrentSide('back');
-          console.log('✅ Saved front data');
-          
-          // Set temporary scanResult to show front data
-          const tempScanResult = {
-            documentType: 'CCCD',
-            confidence: Math.round((result.detections_with_text?.[0]?.confidence || 0) * 100),
-            extractedData: extractedData,
-            raw: result,
-            isPartial: true,
-            side: 'front'
-          };
-          setScanResult(tempScanResult);
-          setExtractedData(extractedData);
-          
-          // Cho phép chọn cách quét mặt sau
-          setTimeout(() => {
-            Alert.alert(
-              'Mặt trước đã quét ✓',
-              'Vui lòng quét mặt sau của CCCD để hoàn thành',
-              [
-                { 
-                  text: 'Chụp ảnh', 
-                  onPress: () => {
-                    setTimeout(() => handleTakePhoto('back'), 300);
-                  }
-                },
-                {
-                  text: 'Chọn từ thư viện',
-                  onPress: () => {
-                    setTimeout(() => handlePickImage('back'), 300);
-                  }
-                }
-              ]
-            );
-          }, 800);
-        } else if (side === 'back') {
-          console.log('✅ Processing back side...');
-          console.log('📋 Current frontData:', frontData);
-          console.log('📋 Current extractedData (back):', extractedData);
-          
-          setBackImage(imageUri);
-          setBackData(extractedData);
-          
-          // Merge front + back data - use callback to get latest frontData
-          setFrontData(currentFrontData => {
-            console.log('📋 Merging with frontData:', currentFrontData);
-            const mergedData = { ...currentFrontData, ...extractedData };
-            console.log('✅ Merged front + back data:', mergedData);
-            
-            const scanResultData = {
-              documentType: 'CCCD',
-              confidence: Math.round((result.detections_with_text?.[0]?.confidence || 0) * 100),
-              extractedData: mergedData,
-              raw: result,
-              isPartial: false,
-              hasBothSides: true
-            };
-            
-            setScanResult(scanResultData);
-            setExtractedData(mergedData);
-            
-            console.log('✅ Both sides scanned successfully');
-            console.log('✅ Final merged extractedData:', mergedData);
-            console.log('✅ scanResult.isPartial:', scanResultData.isPartial);
-            console.log('✅ scanResult.hasBothSides:', scanResultData.hasBothSides);
-            
-            // Show success message
-            setTimeout(() => {
-              Alert.alert(
-                'Hoàn thành! ✓',
-                'Đã quét đầy đủ 2 mặt CCCD. Vui lòng kiểm tra thông tin và nhấn "Lưu thông tin".',
-                [{ text: 'OK' }]
-              );
-            }, 500);
-            
-            return currentFrontData; // Return unchanged
-          });
-        }
-      } else {
-        // For non-CCCD documents, use old flow
-        const scanResultData = {
-          documentType: docType,
-          confidence: Math.round((result.detections_with_text?.[0]?.confidence || 0) * 100),
-          extractedData: extractedData,
-          raw: result
-        };
-        
-        setScanResult(scanResultData);
-        setExtractedData(extractedData);
-      }
+      // Tạo scanResult với document ID
+      const scanResultData = {
+        documentType: docType,
+        documentId: documentId, // Lưu document ID để dùng khi save
+        confidence: result.length > 0 ? Math.round((result[0].confidence_score || 0) * 100) : 0,
+        extractedData: extractedData,
+        raw: result,
+        isPartial: false,
+        hasBothSides: docType === 'CCCD'
+      };
+      
+      setScanResult(scanResultData);
+      setExtractedData(extractedData);
+      console.log('✅ Scan completed successfully');
+      console.log('✅ Setting extractedData to state:', extractedData);
+      
+      // Show success message
+      setTimeout(() => {
+        Alert.alert(
+          'Hoàn thành! ✓',
+          `Đã quét ${docType} thành công. Vui lòng kiểm tra thông tin và nhấn "Lưu thông tin".`,
+          [{ text: 'OK' }]
+        );
+      }, 500);
       
       console.log('✅ State updated successfully');
     } catch (error) {
@@ -332,8 +485,7 @@ export default function ScanResultScreen({ navigation, route }) {
     console.log('💾 handleSave called');
     console.log('💾 Document Type:', docType);
     console.log('💾 Current extractedData:', extractedData);
-    console.log('💾 Front image:', frontImage);
-    console.log('💾 Back image:', backImage);
+    console.log('💾 ScanResult:', scanResult);
     
     if (!extractedData || Object.keys(extractedData).length === 0) {
       console.log('❌ No data to save');
@@ -341,200 +493,145 @@ export default function ScanResultScreen({ navigation, route }) {
       return;
     }
     
-    // Kiểm tra CCCD phải có đủ 2 mặt
-    if (docType === 'CCCD' && (!frontImage || !backImage)) {
-      Alert.alert(
-        'Thiếu dữ liệu',
-        'Vui lòng quét cả mặt trước và mặt sau của CCCD',
-        [{ text: 'OK' }]
-      );
+    if (!scanResult || !scanResult.documentId) {
+      Alert.alert('Lỗi', 'Thiếu thông tin document. Vui lòng quét lại.');
       return;
     }
 
     try {
       setLoading(true);
       
-      console.log('💾 Preparing data for', docType);
-      
-      // Lấy thông tin user hiện tại để có user_id
-      const currentUser = await usersAPI.getMe();
-      console.log('👤 Current user:', currentUser);
-      
-      if (!currentUser || !currentUser.id) {
-        Alert.alert('Lỗi', 'Không thể lấy thông tin người dùng. Vui lòng đăng nhập lại.');
-        return;
-      }
-      
-      // Helper: Convert date từ DD/MM/YYYY sang YYYY-MM-DD
-      const convertDateFormat = (dateStr) => {
-        if (!dateStr) return null;
-        try {
-          // Kiểm tra xem đã đúng format ISO chưa
-          if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) return dateStr;
-          
-          // Convert DD/MM/YYYY -> YYYY-MM-DD
-          const parts = dateStr.split('/');
+      if (docType === 'CCCD') {
+        // Save CCCD data to database
+        console.log('💾 Saving CCCD data...');
+        
+        // Helper function to parse dates from Vietnamese format
+        const parseVietnameseDate = (dateStr) => {
+          if (!dateStr) return null;
+          // Format: "DD/MM/YYYY" hoặc "DD-MM-YYYY"
+          const parts = dateStr.split(/[\/\-]/);
           if (parts.length === 3) {
             const [day, month, year] = parts;
             return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
           }
           return null;
-        } catch (e) {
-          console.error('Error converting date:', e);
-          return null;
+        };
+        
+        const cccdData = {
+          document_id: scanResult.documentId,
+          so_cccd: extractedData['Số CCCD'] || extractedData['id'] || extractedData['id_'] || '',
+          origin_place: [
+            extractedData['Quê quán (1)'] || '',
+            extractedData['Quê quán (2)'] || ''
+          ].filter(p => p).join(', ') || 'N/A',
+          current_place: [
+            extractedData['Nơi thường trú (1)'] || '',
+            extractedData['Nơi thường trú (2)'] || ''
+          ].filter(p => p).join(', ') || 'N/A',
+          citizen_name: extractedData['Họ và tênn'] || extractedData['Họ và tên'] || 
+                       scanResult.extractedData?.['Họ và tên'] || 
+                       (scanResult.raw?.find(r => r.field_name === 'name')?.raw_text) || '',
+          citizen_dob: extractedData['Ngày sinh'] || extractedData['dob'] || 
+                      scanResult.extractedData?.['Ngày sinh'] ||
+                      (scanResult.raw?.find(r => r.field_name === 'dob')?.raw_text) || '',
+          citizen_gender: extractedData['Giới tính'] || extractedData['gender'] ||
+                         scanResult.extractedData?.['Giới tính'] ||
+                         (scanResult.raw?.find(r => r.field_name === 'gender')?.raw_text) || '',
+          issue_date: extractedData['issue_date'] || extractedData['Ngày cấp'] ||
+                     scanResult.extractedData?.['issue_date'] ||
+                     (scanResult.raw?.find(r => r.field_name === 'issue_date')?.raw_text) || '',
+          expire_date: extractedData['Có giá trị đến'] || extractedData['expire_date'] ||
+                      scanResult.extractedData?.['Có giá trị đến'] ||
+                      (scanResult.raw?.find(r => r.field_name === 'expire_date')?.raw_text) || '',
+        };
+        
+        console.log('💾 CCCD data prepared:', JSON.stringify(cccdData, null, 2));        console.log('🔍 Debug - extractedData name fields:', {
+          'Họ và tênn': extractedData['Họ và tênn'],
+          'Họ và tên': extractedData['Họ và tên'],
+          'scanResult.extractedData name': scanResult.extractedData?.['Họ và tên'],
+          'raw name': scanResult.raw?.find(r => r.field_name === 'name')?.raw_text,
+          'Giới tính': extractedData['Giới tính'],
+          'raw gender': scanResult.raw?.find(r => r.field_name === 'gender')?.raw_text
+        });        
+        try {
+          const result = await documentsAPI.saveCCCDData(cccdData);
+          console.log('✅ CCCD data saved to database:', result);
+        } catch (saveError) {
+          console.error('❌ Error saving CCCD data:', saveError);
+          console.error('❌ Error details:', JSON.stringify(saveError, null, 2));
+          throw new Error(`Không thể lưu thông tin CCCD: ${saveError.message || 'Unknown error'}`);
         }
-      };
-      
-      // Helper: Convert gender từ tiếng Việt sang MALE/FEMALE
-      const convertGender = (genderStr) => {
-        if (!genderStr) return null;
-        const normalized = genderStr.toLowerCase().trim();
-        if (normalized === 'nam' || normalized === 'male') return 'MALE';
-        if (normalized === 'nữ' || normalized === 'nu' || normalized === 'female') return 'FEMALE';
-        return null;
-      };
-      
-      // Với schema mới: chỉ lưu vào Citizens với user_id
-      // CCCD, GPLX, BHYT đều được lưu vào Citizens trước, sau đó tạo Documents nếu cần
-      
-      const rawDob = extractedData['Ngày sinh'] || extractedData['Ngày tháng năm sinh'] || extractedData['dob'];
-      const rawGender = extractedData['Giới tính'] || extractedData['gender'];
-      
-      const citizenData = {
-        user_id: currentUser.id,
-        name: extractedData['Họ và tên'] || extractedData['name'] || '',
-        date_of_birth: convertDateFormat(rawDob),
-        gender: convertGender(rawGender),
-        nationality: extractedData['Quốc tịch'] || extractedData['nationality'] || 'Việt Nam'
-      };
+      }
 
-      console.log('💾 Raw DOB:', rawDob, '-> Converted:', citizenData.date_of_birth);
-      console.log('💾 Raw Gender:', rawGender, '-> Converted:', citizenData.gender);
-      console.log('💾 Citizen data to save:', citizenData);
-      
-      const savedCitizen = await citizensAPI.create(citizenData);
-      console.log('✅ Saved citizen:', savedCitizen);
-      
-      // Nếu là CCCD, tạo thêm Documents + CCCD record
-      if (docType === 'CCCD' && savedCitizen && savedCitizen.id) {
+      // Save BHYT data to database
+      if (docType === 'BHYT') {
+        console.log('💾 Saving BHYT data...');
+        console.log('🔍 Current extractedData for BHYT:', extractedData);
+        
+        const bhytData = {
+          document_id: scanResult.documentId,
+          so_bhyt: extractedData['Số BHYT'] || extractedData['bhyt_number'] || 
+                  extractedData['Số CCCD'] || extractedData['id'] ||
+                  (scanResult.raw?.find(r => r.field_name === 'id')?.raw_text) || '',
+          hospital_code: extractedData['Mã bệnh viện'] || extractedData['hospital_code'] || 
+                        extractedData['ihos'] ||
+                        (scanResult.raw?.find(r => r.field_name === 'ihos')?.raw_text) || '',
+          insurance_area: extractedData['Khu vực'] || extractedData['insurance_area'] || 
+                         extractedData['iplace'] ||
+                         (scanResult.raw?.find(r => r.field_name === 'iplace')?.raw_text) || '',
+          citizen_name: extractedData['Họ và tên'] || extractedData['name'] ||
+                       scanResult.extractedData?.['Họ và tên'] ||
+                       (scanResult.raw?.find(r => r.field_name === 'name')?.raw_text) || '',
+          citizen_dob: extractedData['Ngày sinh'] || extractedData['dob'] ||
+                      scanResult.extractedData?.['Ngày sinh'] ||
+                      (scanResult.raw?.find(r => r.field_name === 'dob')?.raw_text) || '',
+          citizen_gender: extractedData['Giới tính'] || extractedData['gender'] ||
+                         scanResult.extractedData?.['Giới tính'] ||
+                         (scanResult.raw?.find(r => r.field_name === 'gender')?.raw_text) || '',
+          issue_date: extractedData['Ngày cấp'] || extractedData['issue_date'] ||
+                     (scanResult.raw?.find(r => r.field_name === 'issue_date')?.raw_text) || '',
+          expire_date: extractedData['Có giá trị đến'] || extractedData['expire_date'] ||
+                      (scanResult.raw?.find(r => r.field_name === 'expire_date')?.raw_text) || '',
+        };
+        
+        console.log('💾 BHYT data prepared:', JSON.stringify(bhytData, null, 2));
+        console.log('🔍 Debug BHYT fields:', {
+          'Số BHYT': extractedData['Số BHYT'],
+          'bhyt_number': extractedData['bhyt_number'],
+          'Mã bệnh viện': extractedData['Mã bệnh viện'],
+          'hospital_code': extractedData['hospital_code'],
+          'All keys': Object.keys(extractedData)
+        });
+        
         try {
-          console.log('💾 Preparing CCCD document data...');
-          console.log('💾 All extractedData keys:', Object.keys(extractedData));
-          console.log('💾 All extractedData:', extractedData);
-          
-          // Ghép origin_place từ origin_place1 và origin_place2
-          const originPlace1 = extractedData['Quê quán (1)'] || '';
-          const originPlace2 = extractedData['Quê quán (2)'] || '';
-          const originPlace = [originPlace1, originPlace2].filter(p => p).join(', ');
-          
-          // Ghép current_place từ current_place1 và current_place2
-          const currentPlace1 = extractedData['Nơi thường trú (1)'] || '';
-          const currentPlace2 = extractedData['Nơi thường trú (2)'] || '';
-          const currentPlace = [currentPlace1, currentPlace2].filter(p => p).join(', ');
-          
-          // Log để debug
-          console.log('💾 Looking for issue_date in keys:', Object.keys(extractedData));
-          console.log('💾 Ngày cấp:', extractedData['Ngày cấp']);
-          console.log('💾 issue_date:', extractedData['issue_date']);
-          console.log('💾 Có giá trị đến:', extractedData['Có giá trị đến']);
-          console.log('💾 expire_date:', extractedData['expire_date']);
-          
-          const issueDate = convertDateFormat(extractedData['Ngày cấp'] || extractedData['issue_date']);
-          const expireDate = convertDateFormat(extractedData['Có giá trị đến'] || extractedData['expire_date']);
-          
-          console.log('💾 Converted issue_date:', issueDate);
-          console.log('💾 Converted expire_date:', expireDate);
-          
-          const cccdData = {
-            citizen_id: savedCitizen.id,
-            so_cccd: extractedData['Số CCCD'] || extractedData['id'] || '',
-            origin_place: originPlace || 'N/A',
-            current_place: currentPlace || 'N/A',
-            issue_date: issueDate,
-            expire_date: expireDate
-          };
-          
-          console.log('💾 CCCD data to save:', JSON.stringify(cccdData, null, 2));
-          
-          const savedCCCD = await documentsAPI.createCCCD(cccdData);
-          console.log('✅ Saved CCCD document:', JSON.stringify(savedCCCD, null, 2));
-        } catch (cccdError) {
-          console.error('⚠️ Warning: Could not create CCCD document:', cccdError);
-          console.error('⚠️ CCCD Error details:', cccdError.message);
-          console.error('⚠️ CCCD Error stack:', cccdError.stack);
-          Alert.alert('Cảnh báo', 'Đã lưu thông tin cá nhân nhưng không thể lưu thông tin CCCD: ' + cccdError.message);
-          // Không fail toàn bộ flow nếu CCCD ko tạo được
+          const result = await documentsAPI.saveBHYTData(bhytData);
+          console.log('✅ BHYT data saved to database:', result);
+        } catch (saveError) {
+          console.error('❌ Error saving BHYT data:', saveError);
+          console.error('❌ Error details:', JSON.stringify(saveError, null, 2));
+          throw new Error(`Không thể lưu thông tin BHYT: ${saveError.message || 'Unknown error'}`);
         }
       }
       
-      // Nếu là GPLX, tạo thêm Documents + GPLX record
-      if (docType === 'GPLX' && savedCitizen && savedCitizen.id) {
-        try {
-          console.log('💾 Preparing GPLX document data...');
-          
-          const issueDate = convertDateFormat(extractedData['Ngày cấp'] || extractedData['issue_date']);
-          const expireDate = convertDateFormat(extractedData['Ngày thẻ hết hạn'] || extractedData['expire_date'] || extractedData['expiry_date']);
-          
-          const gplxData = {
-            citizen_id: savedCitizen.id,
-            so_gplx: extractedData['Mã thẻ'] || extractedData['id'] || '',
-            hang_gplx: extractedData['Hạng thẻ'] || extractedData['level'] || extractedData['class'] || '',
-            noi_cap: extractedData['Nơi cấp'] || extractedData['place_of_issue'] || extractedData['iplace'] || '',
-            issue_date: issueDate,
-            expire_date: expireDate
-          };
-          
-          console.log('💾 GPLX data to save:', JSON.stringify(gplxData, null, 2));
-          
-          const savedGPLX = await documentsAPI.createGPLX(gplxData);
-          console.log('✅ Saved GPLX document:', JSON.stringify(savedGPLX, null, 2));
-        } catch (gplxError) {
-          console.error('⚠️ Warning: Could not create GPLX document:', gplxError);
-          console.error('⚠️ GPLX Error details:', gplxError.message);
-          Alert.alert('Cảnh báo', 'Đã lưu thông tin cá nhân nhưng không thể lưu thông tin GPLX: ' + gplxError.message);
-        }
-      }
-      
-      // Nếu là BHYT, tạo thêm Documents + BHYT record
-      if (docType === 'BHYT' && savedCitizen && savedCitizen.id) {
-        try {
-          console.log('💾 Preparing BHYT document data...');
-          
-          const issueDate = convertDateFormat(extractedData['Ngày cấp'] || extractedData['issue_date']);
-          const expireDate = convertDateFormat(extractedData['Giá trị đến'] || extractedData['expire_date']);
-          
-          const bhytData = {
-            citizen_id: savedCitizen.id,
-            so_bhyt: extractedData['Số thẻ BHYT'] || extractedData['Số BHYT'] || extractedData['id'] || '',
-            hospital_code: extractedData['Mã nơi KCB'] || extractedData['hospital_code'] || 'N/A',
-            insurance_area: extractedData['Khu vực'] || extractedData['insurance_area'] || 'N/A',
-            issue_date: issueDate,
-            expire_date: expireDate
-          };
-          
-          console.log('💾 BHYT data to save:', JSON.stringify(bhytData, null, 2));
-          
-          const savedBHYT = await documentsAPI.createBHYT(bhytData);
-          console.log('✅ Saved BHYT document:', JSON.stringify(savedBHYT, null, 2));
-        } catch (bhytError) {
-          console.error('⚠️ Warning: Could not create BHYT document:', bhytError);
-          console.error('⚠️ BHYT Error details:', bhytError.message);
-          Alert.alert('Cảnh báo', 'Đã lưu thông tin cá nhân nhưng không thể lưu thông tin BHYT: ' + bhytError.message);
-        }
-      }
-      
-      Alert.alert('Thành công', `Đã lưu thông tin ${docType}!`, [
-        { 
-          text: 'OK', 
-          onPress: () => {
-            // Navigate back với flag refresh để HomeScreen reload data
-            navigation.navigate('Home', { refresh: Date.now() });
+      Alert.alert(
+        'Hoàn thành! ✓',
+        `Đã lưu thông tin ${docType} thành công. Bạn có thể xem chi tiết từ màn hình chính.`,
+        [
+          { 
+            text: 'OK', 
+            onPress: () => {
+              // Reset và quay về Home với refresh flag
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Home', params: { refresh: Date.now() } }],
+              });
+            }
           }
-        }
-      ]);
+        ]
+      );
     } catch (error) {
       console.error('❌ Save error:', error);
-      Alert.alert('Lỗi', 'Không thể lưu thông tin: ' + error.message);
+      Alert.alert('Lỗi', 'Không thể hoàn tất: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -542,8 +639,7 @@ export default function ScanResultScreen({ navigation, route }) {
 
   const handleRescan = () => {
     // Reset states
-    setFrontImage(null);
-    setBackImage(null);
+    frontUriRef.current = null;
     setFrontData({});
     setBackData({});
     setExtractedData({});
@@ -727,11 +823,11 @@ export default function ScanResultScreen({ navigation, route }) {
             )}
             {docType === 'CCCD' && (
               <View style={styles.scanStatusRow}>
-                <Text style={[styles.scanStatus, frontImage && styles.scanStatusDone]}>
-                  {frontImage ? '✓' : '○'} Mặt trước {frontImage ? '(Đã quét)' : '(Chưa quét)'}
+                <Text style={[styles.scanStatus, frontUriRef.current && styles.scanStatusDone]}>
+                  {frontUriRef.current ? '✓' : '○'} Mặt trước {frontUriRef.current ? '(Đã quét)' : '(Chưa quét)'}
                 </Text>
-                <Text style={[styles.scanStatus, backImage && styles.scanStatusDone]}>
-                  {backImage ? '✓' : '○'} Mặt sau {backImage ? '(Đã quét)' : '(Chưa quét)'}
+                <Text style={[styles.scanStatus, scanResult && styles.scanStatusDone]}>
+                  {scanResult ? '✓' : '○'} Mặt sau {scanResult ? '(Đã quét)' : '(Chưa quét)'}
                 </Text>
               </View>
             )}

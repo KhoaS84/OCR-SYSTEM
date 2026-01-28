@@ -51,6 +51,10 @@ class Documents(models.Model):
     def __str__(self):
         return str(self.id)
 
+    class Meta:
+        app_label = 'orm'
+        db_table = 'ocr_core_documents'
+
 # CCCD & BHYT
 class CCCD(models.Model):
 
@@ -75,6 +79,10 @@ class CCCD(models.Model):
 
     def __str__(self):
         return self.so_cccd
+
+    class Meta:
+        app_label = 'orm'
+        db_table = 'ocr_core_cccd'
     
 class BHYT(models.Model):
 
@@ -87,6 +95,8 @@ class BHYT(models.Model):
         max_length=20,
         verbose_name="Số BHYT",
         unique=True,
+        blank=True,
+        null=True,
     )
     hospital_code = models.CharField(
         max_length=100, 
@@ -100,6 +110,10 @@ class BHYT(models.Model):
     
     def __str__(self):
         return self.so_bhyt
+
+    class Meta:
+        app_label = 'orm'
+        db_table = 'ocr_core_bhyt'
     
 # Document images
 class DocumentImages(models.Model):
@@ -135,5 +149,9 @@ class DocumentImages(models.Model):
 
     def __str__(self):
         return str(self.id)
+
+    class Meta:
+        app_label = 'orm'
+        db_table = 'ocr_core_documentimages'
 
 

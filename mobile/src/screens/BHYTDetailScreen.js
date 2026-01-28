@@ -14,7 +14,7 @@ import DocumentHeader from '../components/DocumentHeader';
 import InfoField from '../components/InfoField';
 import CustomButton from '../components/CustomButton';
 import { COLORS } from '../constants/colors';
-import { citizensAPI } from '../services/api';
+import { documentsAPI } from '../services/api';
 
 export default function BHYTDetailScreen({ navigation, route }) {
   const [bhytData, setBhytData] = useState(null);
@@ -50,28 +50,22 @@ export default function BHYTDetailScreen({ navigation, route }) {
   const loadBHYTData = async () => {
     try {
       setLoading(true);
-      console.log('🔍 Loading citizen data for BHYT...');
+      console.log('🔍 Loading BHYT data...');
       
       const citizenId = route.params?.citizenId;
       console.log('🔍 Citizen ID from params:', citizenId);
       
       if (citizenId) {
-        console.log('🔍 Fetching citizen by ID:', citizenId);
-        const data = await citizensAPI.getById(citizenId);
-        console.log('✅ Got citizen data:', data);
+        console.log('🔍 Fetching BHYT by citizen ID:', citizenId);
+        const data = await documentsAPI.getBHYTByCitizen(citizenId);
+        console.log('✅ Got BHYT data:', data);
         setBhytData(data);
       } else {
-        console.log('🔍 No citizen ID, fetching all citizens...');
-        const citizens = await citizensAPI.search('');
-        console.log('✅ Got citizens list:', citizens);
-        
-        if (citizens && citizens.length > 0) {
-          console.log('✅ Using first citizen:', citizens[0]);
-          setBhytData(citizens[0]);
-        }
+        console.log('⚠️ No citizen ID provided');
+        Alert.alert('Lỗi', 'Không có thông tin công dân');
       }
     } catch (error) {
-      console.error('❌ Error loading citizen data:', error);
+      console.error('❌ Error loading BHYT data:', error);
       Alert.alert('Lỗi', 'Không thể tải thông tin: ' + error.message);
     } finally {
       setLoading(false);
@@ -129,20 +123,62 @@ export default function BHYTDetailScreen({ navigation, route }) {
 
         <DocumentHeader title="Bảo Hiểm Y Tế" icon="🏥" />
 
-        <View style={styles.photoSection}>
-          <View style={styles.photoPlaceholder}>
-            <Text style={styles.photoIcon}>👤</Text>
-            <Text style={styles.photoLabel}>Ảnh chân dung</Text>
+        {/* BHYT Card - Giống như thẻ thật */}
+        <View style={styles.bhytCard}>
+          {/* Header của thẻ */}
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardHeaderTitle}>BẢO HIỂM XÃ HỘI VIỆT NAM</Text>
+            <Text style={styles.cardHeaderSubtitle}>THẺ BẢO HIỂM Y TẾ</Text>
           </View>
-        </View>
 
-        <View style={styles.detailsCard}>
-          <InfoField label="ID" value={bhytData.id || 'N/A'} />
-          <InfoField label="Họ và tên" value={bhytData.name || 'N/A'} />
-          <InfoField label="Ngày sinh" value={formatDateToVietnamese(bhytData.date_of_birth)} />
-          <InfoField label="Giới tính" value={formatGenderToVietnamese(bhytData.gender)} />
-          <InfoField label="Quốc tịch" value={bhytData.nationality || 'Việt Nam'} />
-          <InfoField label="User ID" value={bhytData.user_id || 'N/A'} />
+          {/* Photo và thông tin chính */}
+          <View style={styles.cardMainSection}>
+            <View style={styles.photoSection}>
+              <View style={styles.photoPlaceholder}>
+                <Text style={styles.photoIcon}>👤</Text>
+              </View>
+            </View>
+
+            <View style={styles.cardInfoSection}>
+              <InfoField 
+                label="Số BHYT" 
+                value={bhytData.so_bhyt || 'N/A'} 
+                style={styles.primaryField}
+              />
+              <InfoField 
+                label="Họ và tên" 
+                value={bhytData.citizen_name || 'N/A'} 
+              />
+              <InfoField 
+                label="Ngày sinh" 
+                value={formatDateToVietnamese(bhytData.citizen_dob)} 
+              />
+              <InfoField 
+                label="Giới tính" 
+                value={formatGenderToVietnamese(bhytData.citizen_gender)} 
+              />
+              <InfoField 
+                label="Nơi ĐK KCB" 
+                value={bhytData.hospital_code || 'N/A'} 
+              />
+            </View>
+          </View>
+
+          {/* Thông tin bổ sung */}
+          <View style={styles.cardAdditionalInfo}>
+            <InfoField 
+              label="Giá trị sử dụng" 
+              value={bhytData.issue_date ? `Từ ngày ${formatDateToVietnamese(bhytData.issue_date)}` : 'N/A'} 
+            />
+            <InfoField 
+              label="Hết hạn" 
+              value={formatDateToVietnamese(bhytData.expire_date)} 
+            />
+            <InfoField 
+              label="Nơi cấp thẻ BHYT" 
+              value={bhytData.insurance_area || 'N/A'} 
+            />
+          </View>
         </View>
 
         <View style={styles.actionButtons}>
@@ -174,13 +210,52 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     marginBottom: 10
   },
+  
+  // BHYT Card styles - Giống thẻ thật
+  bhytCard: {
+    backgroundColor: COLORS.white,
+    margin: 20,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: COLORS.gray[200]
+  },
+  cardHeader: {
+    backgroundColor: '#1E40AF', // Màu xanh dương như thẻ BHYT thật
+    padding: 16,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    alignItems: 'center'
+  },
+  cardHeaderTitle: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center'
+  },
+  cardHeaderSubtitle: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 4,
+    textAlign: 'center'
+  },
+  cardMainSection: {
+    flexDirection: 'row',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray[200]
+  },
   photoSection: {
-    alignItems: 'center',
-    padding: 20
+    marginRight: 16
   },
   photoPlaceholder: {
-    width: 150,
-    height: 180,
+    width: 100,
+    height: 120,
     backgroundColor: COLORS.gray[200],
     borderRadius: 8,
     justifyContent: 'center',
@@ -189,25 +264,22 @@ const styles = StyleSheet.create({
     borderColor: COLORS.gray[300]
   },
   photoIcon: {
-    fontSize: 64
+    fontSize: 48
   },
-  photoLabel: {
-    fontSize: 12,
-    color: COLORS.gray[500],
-    marginTop: 8
+  cardInfoSection: {
+    flex: 1
   },
-  detailsCard: {
-    backgroundColor: COLORS.white,
-    margin: 20,
-    marginTop: 0,
-    borderRadius: 12,
+  primaryField: {
+    backgroundColor: '#FEF3C7', // Highlight số BHYT
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 8
+  },
+  cardAdditionalInfo: {
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3
+    backgroundColor: '#F9FAFB'
   },
+  
   actionButtons: {
     padding: 20,
     paddingTop: 0

@@ -44,4 +44,8 @@ class Citizens(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        app_label = 'orm'
+        db_table = 'ocr_core_citizens'
+
 

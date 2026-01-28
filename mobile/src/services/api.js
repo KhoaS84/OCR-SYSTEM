@@ -59,6 +59,33 @@ export const authAPI = {
     return handleResponse(response);
   },
 
+  async refreshToken() {
+    const headers = await getAuthHeader();
+    const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        ...headers,
+      },
+    });
+    
+    const data = await handleResponse(response);
+    if (data.access_token) {
+      await AsyncStorage.setItem('token', data.access_token);
+    }
+    return data;
+  },
+
+  async getMe() {
+    const headers = await getAuthHeader();
+    const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
+      headers: {
+        ...headers,
+      },
+    });
+    
+    return handleResponse(response);
+  },
+
   async logout() {
     await AsyncStorage.removeItem('token');
   },
@@ -66,121 +93,18 @@ export const authAPI = {
 
 // OCR API
 export const ocrAPI = {
-  async detectDocument(fileUri) {
+  async processDocument(documentId) {
     try {
-      const formData = new FormData();
-      formData.append('file', {
-        uri: fileUri,
-        type: 'image/jpeg',
-        name: 'document.jpg',
-      });
-      
       const headers = await getAuthHeader();
       
-      // Timeout controller
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 seconds
-      
-      const response = await fetch(`${API_BASE_URL}/api/v1/ocr/detect`, {
-        method: 'POST',
-        headers: {
-          ...headers,
-        },
-        body: formData,
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      return handleResponse(response);
-    } catch (error) {
-      if (error.name === 'AbortError') {
-        throw new Error('Timeout: Xử lý ảnh mất quá lâu');
-      }
-      throw error;
-    }
-  },
-
-  async extractText(fileUri) {
-    try {
-      console.log('🚀 Starting OCR extract for:', fileUri);
-      
-      // Tạo FormData với React Native format
-      const formData = new FormData();
-      
-      // Parse filename from URI
-      const uriParts = fileUri.split('/');
-      const fileName = uriParts[uriParts.length - 1];
-      
-      console.log('📝 File name:', fileName);
-      
-      // Thêm file với format đúng cho React Native
-      formData.append('file', {
-        uri: fileUri,
-        type: 'image/jpeg',
-        name: fileName || 'photo.jpg',
-      });
-      
-      const headers = await getAuthHeader();
-      
-      console.log('🔑 Auth headers:', headers);
-      console.log('📤 Sending request to:', `${API_BASE_URL}/api/v1/ocr/extract`);
-      console.log('📦 FormData created');
-      
-      // Timeout controller
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000);
       
-      const response = await fetch(`${API_BASE_URL}/api/v1/ocr/extract`, {
-        method: 'POST',
-        headers: {
-          ...headers,
-          // Không set Content-Type, để browser tự động set với boundary
-        },
-        body: formData,
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      
-      console.log('📥 Response status:', response.status);
-      console.log('📥 Response headers:', response.headers);
-      
-      const result = await handleResponse(response);
-      console.log('✅ OCR extract result:', result);
-      
-      return result;
-    } catch (error) {
-      console.error('❌ OCR extract error:', error);
-      console.error('❌ Error name:', error.name);
-      console.error('❌ Error message:', error.message);
-      if (error.name === 'AbortError') {
-        throw new Error('Timeout: Xử lý ảnh mất quá lâu');
-      }
-      throw error;
-    }
-  },
-
-  async ocrOnly(fileUri) {
-    try {
-      const formData = new FormData();
-      formData.append('file', {
-        uri: fileUri,
-        type: 'image/jpeg',
-        name: 'document.jpg',
-      });
-      
-      const headers = await getAuthHeader();
-      
-      // Timeout controller
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 seconds
-      
-      const response = await fetch(`${API_BASE_URL}/api/v1/ocr/ocr`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/ocr/process/${documentId}`, {
         method: 'POST',
         headers: {
           ...headers,
         },
-        body: formData,
         signal: controller.signal,
       });
       
@@ -219,9 +143,9 @@ export const ocrAPI = {
 
 // Citizens API
 export const citizensAPI = {
-  async search(query) {
+  async getAll() {
     const headers = await getAuthHeader();
-    const response = await fetch(`${API_BASE_URL}/api/v1/citizens/search?q=${encodeURIComponent(query)}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/citizens/`, {
       headers: {
         ...headers,
       },
@@ -270,80 +194,65 @@ export const citizensAPI = {
     
     return handleResponse(response);
   },
-
-  async delete(id) {
-    const headers = await getAuthHeader();
-    const response = await fetch(`${API_BASE_URL}/api/v1/documents/${id}`, {
-      method: 'DELETE',
-      headers: {
-        ...headers,
-      },
-    });
-    
-    return handleResponse(response);
-  },
 };
 
 // Documents API
 export const documentsAPI = {
-  async createCCCD(cccdData) {
-    console.log('📤 documentsAPI.createCCCD - Input:', JSON.stringify(cccdData, null, 2));
-    console.log('📤 Issue date type:', typeof cccdData.issue_date, 'Value:', cccdData.issue_date);
-    console.log('📤 Expire date type:', typeof cccdData.expire_date, 'Value:', cccdData.expire_date);
-    
+  async uploadCCCD(frontUri, backUri) {
+    console.log('📤 documentsAPI.uploadCCCD - Front:', frontUri, 'Back:', backUri);
+    if (!frontUri) throw new Error('Thiếu ảnh mặt trước CCCD');
+    if (!backUri) throw new Error('Thiếu ảnh mặt sau CCCD');
+    const formData = new FormData();
+    // Parse filename from URI
+    const frontParts = (frontUri || '').split('/');
+    const frontName = frontParts[frontParts.length - 1];
+    const backParts = (backUri || '').split('/');
+    const backName = backParts[backParts.length - 1];
+    formData.append('front', {
+      uri: frontUri,
+      type: 'image/jpeg',
+      name: frontName || 'front.jpg',
+    });
+    formData.append('back', {
+      uri: backUri,
+      type: 'image/jpeg',
+      name: backName || 'back.jpg',
+    });
     const headers = await getAuthHeader();
-    const response = await fetch(`${API_BASE_URL}/api/v1/documents/cccd`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/documents/upload/cccd`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
         ...headers,
       },
-      body: JSON.stringify(cccdData),
+      body: formData,
     });
-    
     const result = await handleResponse(response);
-    console.log('✅ documentsAPI.createCCCD - Response:', JSON.stringify(result, null, 2));
+    console.log('✅ documentsAPI.uploadCCCD - Response:', JSON.stringify(result, null, 2));
     return result;
   },
 
-  async createGPLX(gplxData) {
-    console.log('📤 documentsAPI.createGPLX - Input:', JSON.stringify(gplxData, null, 2));
-    
+  async uploadBHYT(imageUri) {
+    console.log('📤 documentsAPI.uploadBHYT - Image:', imageUri);
+    if (!imageUri) throw new Error('Thiếu ảnh thẻ BHYT');
+    const formData = new FormData();
+    const uriParts = (imageUri || '').split('/');
+    const fileName = uriParts[uriParts.length - 1];
+    formData.append('image', {
+      uri: imageUri,
+      type: 'image/jpeg',
+      name: fileName || 'bhyt.jpg',
+    });
     const headers = await getAuthHeader();
-    const response = await fetch(`${API_BASE_URL}/api/v1/documents/gplx`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/documents/upload/bhyt`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
         ...headers,
       },
-      body: JSON.stringify(gplxData),
+      body: formData,
     });
-    
     const result = await handleResponse(response);
-    console.log('✅ documentsAPI.createGPLX - Response:', JSON.stringify(result, null, 2));
+    console.log('✅ documentsAPI.uploadBHYT - Response:', JSON.stringify(result, null, 2));
     return result;
-  },
-
-  async getCCCDByCitizen(citizenId) {
-    const headers = await getAuthHeader();
-    const response = await fetch(`${API_BASE_URL}/api/v1/documents/cccd/${citizenId}`, {
-      headers: {
-        ...headers,
-      },
-    });
-    
-    return handleResponse(response);
-  },
-
-  async getAll() {
-    const headers = await getAuthHeader();
-    const response = await fetch(`${API_BASE_URL}/api/v1/documents`, {
-      headers: {
-        ...headers,
-      },
-    });
-    
-    return handleResponse(response);
   },
 
   async getById(id) {
@@ -357,22 +266,12 @@ export const documentsAPI = {
     return handleResponse(response);
   },
 
-  async upload(fileUri, documentType) {
-    const formData = new FormData();
-    formData.append('file', {
-      uri: fileUri,
-      type: 'image/jpeg',
-      name: 'document.jpg',
-    });
-    formData.append('document_type', documentType);
-    
+  async getAll() {
     const headers = await getAuthHeader();
-    const response = await fetch(`${API_BASE_URL}/api/v1/documents`, {
-      method: 'POST',
+    const response = await fetch(`${API_BASE_URL}/api/v1/documents/`, {
       headers: {
         ...headers,
       },
-      body: formData,
     });
     
     return handleResponse(response);
@@ -389,47 +288,73 @@ export const documentsAPI = {
     
     return handleResponse(response);
   },
-};
 
-// Users API
-export const usersAPI = {
-  async getMe() {
+  async saveCCCDData(cccdData) {
+    console.log('💾 documentsAPI.saveCCCDData:', cccdData);
     const headers = await getAuthHeader();
-    const response = await fetch(`${API_BASE_URL}/api/v1/users/me`, {
-      headers: {
-        ...headers,
-      },
-    });
-    
-    return handleResponse(response);
-  },
-
-  async updateProfile(userData) {
-    const headers = await getAuthHeader();
-    const response = await fetch(`${API_BASE_URL}/api/v1/users/me`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        ...headers,
-      },
-      body: JSON.stringify(userData),
-    });
-    
-    return handleResponse(response);
-  },
-
-  async changePassword(oldPassword, newPassword) {
-    const headers = await getAuthHeader();
-    const response = await fetch(`${API_BASE_URL}/api/v1/users/change-password`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/documents/save-cccd-data`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...headers,
       },
-      body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+      body: JSON.stringify(cccdData),
     });
     
-    return handleResponse(response);
+    const result = await handleResponse(response);
+    console.log('✅ documentsAPI.saveCCCDData - Response:', result);
+    return result;
+  },
+
+  async saveBHYTData(bhytData) {
+    console.log('💾 documentsAPI.saveBHYTData:', bhytData);
+    const headers = await getAuthHeader();
+    const response = await fetch(`${API_BASE_URL}/api/v1/documents/save-bhyt-data`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers,
+      },
+      body: JSON.stringify(bhytData),
+    });
+    
+    const result = await handleResponse(response);
+    console.log('✅ documentsAPI.saveBHYTData - Response:', result);
+    return result;
+  },
+
+  // Lấy CCCD data đầy đủ theo citizen ID
+  async getCCCDByCitizen(citizenId) {
+    try {
+      const headers = await getAuthHeader();
+      const response = await fetch(`${API_BASE_URL}/api/v1/documents/cccd/by-citizen/${citizenId}`, {
+        headers: {
+          ...headers,
+        },
+      });
+      
+      return await handleResponse(response);
+    } catch (error) {
+      console.warn('🚫 getCCCDByCitizen failed:', error.message);
+      throw error;
+    }
+  },
+
+  // Lấy BHYT data đầy đủ theo citizen ID
+  async getBHYTByCitizen(citizenId) {
+    try {
+      const headers = await getAuthHeader();
+      const response = await fetch(`${API_BASE_URL}/api/v1/documents/bhyt/by-citizen/${citizenId}`, {
+        headers: {
+          ...headers,
+        },
+      });
+      
+      return await handleResponse(response);
+    } catch (error) {
+      console.warn('🚫 getBHYTByCitizen failed:', error.message);
+      throw error;
+    }
   },
 };
 
@@ -438,5 +363,4 @@ export default {
   ocrAPI,
   citizensAPI,
   documentsAPI,
-  usersAPI,
 };

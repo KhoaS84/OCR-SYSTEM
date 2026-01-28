@@ -14,7 +14,7 @@ import DocumentHeader from '../components/DocumentHeader';
 import InfoField from '../components/InfoField';
 import CustomButton from '../components/CustomButton';
 import { COLORS } from '../constants/colors';
-import { citizensAPI, documentsAPI } from '../services/api';
+import { citizensAPI, documentsAPI, authAPI } from '../services/api';
 
 export default function CCCDDetailScreen({ navigation, route }) {
   const [cccdData, setCccdData] = useState(null);
@@ -83,7 +83,7 @@ export default function CCCDDetailScreen({ navigation, route }) {
       } else {
         console.log('🔍 No citizen ID, fetching all citizens...');
         // Lấy citizen đầu tiên
-        const citizens = await citizensAPI.search('');
+        const citizens = await citizensAPI.getAll();
         console.log('✅ Got citizens list:', citizens);
         console.log('✅ Citizens count:', citizens?.length);
         

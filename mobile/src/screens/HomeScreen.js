@@ -15,7 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import DocumentCard from '../components/DocumentCard';
 import CustomButton from '../components/CustomButton';
 import { COLORS } from '../constants/colors';
-import { usersAPI, documentsAPI, citizensAPI } from '../services/api';
+import { authAPI, documentsAPI, citizensAPI } from '../services/api';
 
 export default function HomeScreen({ navigation }) {
   const [user, setUser] = useState(null);
@@ -35,7 +35,7 @@ export default function HomeScreen({ navigation }) {
   const loadUserData = async () => {
     try {
       setLoading(true);
-      const userData = await usersAPI.getMe();
+      const userData = await authAPI.getMe();
       setUser(userData);
       
       // Load documents
@@ -51,7 +51,7 @@ export default function HomeScreen({ navigation }) {
       }
 
       // Kiểm tra xem user đã có CCCD chưa
-      const cccdExists = docsData?.some(doc => doc.type === 'CCCD');
+      const cccdExists = docsData?.some(doc => doc.type?.toLowerCase() === 'cccd');
       console.log('🔍 HomeScreen - Has CCCD?', cccdExists, 'Documents:', docsData?.length);
       console.log('🔍 HomeScreen - Document types:', docsData?.map(d => d.type));
       setHasCCCD(cccdExists);
@@ -170,7 +170,7 @@ export default function HomeScreen({ navigation }) {
             color={COLORS.primary}
             onPress={() => {
               // Tìm document CCCD và lấy citizen_id của nó
-              const cccdDoc = documents?.find(doc => doc.type === 'CCCD');
+              const cccdDoc = documents?.find(doc => doc.type?.toLowerCase() === 'cccd');
               if (cccdDoc) {
                 navigation.navigate('CCCDDetail', { citizenId: cccdDoc.citizen_id });
               } else {
@@ -188,7 +188,7 @@ export default function HomeScreen({ navigation }) {
                 Alert.alert('Thông báo', 'Vui lòng quét CCCD trước');
               } else {
                 // Tìm document GPLX và lấy citizen_id của nó
-                const gplxDoc = documents?.find(doc => doc.type === 'GPLX');
+                const gplxDoc = documents?.find(doc => doc.type?.toLowerCase() === 'gplx');
                 if (gplxDoc) {
                   navigation.navigate('GPLXDetail', { citizenId: gplxDoc.citizen_id });
                 } else {
@@ -207,7 +207,7 @@ export default function HomeScreen({ navigation }) {
                 Alert.alert('Thông báo', 'Vui lòng quét CCCD trước');
               } else {
                 // Tìm document BHYT và lấy citizen_id của nó
-                const bhytDoc = documents?.find(doc => doc.type === 'BHYT');
+                const bhytDoc = documents?.find(doc => doc.type?.toLowerCase() === 'bhyt');
                 if (bhytDoc) {
                   navigation.navigate('BHYTDetail', { citizenId: bhytDoc.citizen_id });
                 } else {

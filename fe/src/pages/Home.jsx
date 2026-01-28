@@ -4,6 +4,7 @@ import Sidebar from '../components/Sidebar';
 import PersonalInfoSection from '../components/PersonalInfoSection';
 import SearchTable from '../components/SearchTable';
 import DetailModal from '../components/DetailModal';
+import UserManagement from '../components/UserManagement';
 import useStore from '../store/useStore';
 import { citizensAPI, usersAPI } from '../services/api';
 import '../styles/Home.css';
@@ -13,7 +14,10 @@ function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
-  
+  const [detailData, setDetailData] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
+
   // Get state and actions from store
   const {
     activeTab,
@@ -107,12 +111,51 @@ function Home() {
     }
   };
 
+  // Hàm mở modal chi tiết theo tab
+  const handleOpenModal = async (person) => {
+    console.log('🔍 handleOpenModal called', person, 'activeTab:', activeTab);
+    setDetailData(null);
+    setDetailError('');
+    if (activeTab === 'cccd') {
+      setDetailLoading(true);
+      try {
+        console.log('📞 Calling getCCCDByCitizen for citizen:', person.id);
+        const data = await citizensAPI.getCCCDByCitizen(person.id);
+        console.log('✅ CCCD data received:', data);
+        // Đảm bảo có trường id là document_id
+        setDetailData({ ...person, ...data, id: data.id, document_id: data.id, type: 'cccd' });
+      } catch (err) {
+        console.error('❌ Error loading CCCD:', err);
+        setDetailError('Không thể tải chi tiết CCCD');
+      } finally {
+        setDetailLoading(false);
+      }
+    } else if (activeTab === 'insurance') {
+      setDetailLoading(true);
+      try {
+        console.log('📞 Calling getBHYTByCitizen for citizen:', person.id);
+        const data = await citizensAPI.getBHYTByCitizen(person.id);
+        console.log('✅ BHYT data received:', data);
+        console.log('📊 BHYT fields - so_bhyt:', data.so_bhyt, 'hospital_code:', data.hospital_code, 'insurance_area:', data.insurance_area);
+        setDetailData({ ...person, ...data, type: 'bhyt' });
+      } catch (err) {
+        console.error('❌ Error loading BHYT:', err);
+        setDetailError('Không thể tải chi tiết BHYT');
+      } finally {
+        setDetailLoading(false);
+      }
+    } else {
+      setDetailData(person);
+    }
+    openModal(person);
+  };
+
   return (
     <div className="home-container">
       <Header userName={currentUser?.full_name || currentUser?.username || 'User'} />
 
       <div className="main-content">
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} currentUser={currentUser} />
 
         <main className="content-area">
           <div className="page-header">
@@ -138,19 +181,26 @@ function Home() {
                   searchQuery={searchQuery}
                   setSearchQuery={setSearchQuery}
                   filteredData={filteredData}
-                  onRowClick={openModal}
+                  onRowClick={handleOpenModal}
                 />
               )}
             </>
+          )}
+
+          {activeTab === 'users' && (
+            <UserManagement />
           )}
         </main>
       </div>
 
       <DetailModal
-        selectedPerson={selectedPerson}
+        selectedPerson={detailData || selectedPerson}
         showModal={showModal}
         onClose={closeModal}
         onUpdate={handleUpdateCard}
+        loading={detailLoading}
+        error={detailError}
+        activeTab={activeTab}
       />
     </div>
   );

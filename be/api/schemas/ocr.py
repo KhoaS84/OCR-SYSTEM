@@ -1,10 +1,11 @@
 from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel
+from uuid import UUID
 
 class OCRJobResponse(BaseModel):
-    id: int
-    document_id: int
+    id: UUID
+    document_id: UUID
     status: str
     model_name: str
     model_version: str
@@ -15,8 +16,8 @@ class OCRJobResponse(BaseModel):
         from_attributes = True
 
 class OCRResultResponse(BaseModel):
-    id: int
-    ocr_job_id: int
+    id: UUID
+    ocr_job_id: UUID
     field_name: str
     raw_text: str
     confidence_score: float

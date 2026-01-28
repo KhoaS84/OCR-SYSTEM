@@ -35,3 +35,7 @@ class User(models.Model):
     def __str__(self):
 
         return self.username
+
+    class Meta:
+        app_label = 'orm'
+        db_table = 'ocr_core_user'

@@ -1,10 +1,15 @@
-function Sidebar({ activeTab, setActiveTab }) {
+function Sidebar({ activeTab, setActiveTab, currentUser }) {
   const menuItems = [
     { id: 'info', icon: '👤', label: 'Thông tin cá nhân' },
     { id: 'cccd', icon: '🆔', label: 'Căn cước công dân' },
     { id: 'insurance', icon: '🏥', label: 'Bảo hiểm y tế' },
     { id: 'license', icon: '🚗', label: 'Giấy phép xe' },
   ];
+
+  // Add Users tab for admin only
+  if (currentUser && currentUser.role === 'admin') {
+    menuItems.push({ id: 'users', icon: '👥', label: 'Quản lý người dùng' });
+  }
 
   return (
     <aside className="sidebar">

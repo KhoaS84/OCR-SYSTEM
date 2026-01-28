@@ -1,7 +1,7 @@
-import uuid
 from django.db import models
 from django.utils import timezone
 from orm.models.documents import Documents
+import uuid
 
 class ocr_jobs (models.Model):
 
@@ -14,8 +14,7 @@ class ocr_jobs (models.Model):
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
-        editable=False,
-        unique=True,
+        editable=False
     )
     document = models.ForeignKey(
         Documents,
@@ -47,13 +46,16 @@ class ocr_jobs (models.Model):
     def __str__(self):
         return str(self.id)
 
+    class Meta:
+        app_label = 'orm'
+        db_table = 'ocr_core_ocr_jobs'
+
 class ocr_results(models.Model):
 
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
-        editable=False,
-        unique=True,
+        editable=False
     )
     ocr_job = models.ForeignKey(
         ocr_jobs,
@@ -70,10 +72,16 @@ class ocr_results(models.Model):
         decimal_places=2,
     )
     bounding_box = models.JSONField(
+        null=True,
+        blank=True
     )
 
     def __str__(self):
         return f"{self.field_name}: {self.raw_text}"
+
+    class Meta:
+        app_label = 'orm'
+        db_table = 'ocr_core_ocr_results'
 
 
 

@@ -2,16 +2,16 @@
  * API Service - Kết nối Frontend với Backend
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // Helper function để lấy token
-const getAuthHeader = () => {
+export const getAuthHeader = () => {
   const token = localStorage.getItem('token');
   return token ? { 'Authorization': `Bearer ${token}` } : {};
 };
 
 // Helper function để xử lý response
-const handleResponse = async (response) => {
+export const handleResponse = async (response) => {
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
     throw new Error(error.detail || `HTTP error! status: ${response.status}`);
@@ -184,6 +184,24 @@ export const citizensAPI = {
     
     return handleResponse(response);
   },
+
+  async getCCCDByCitizen(citizenId) {
+    const response = await fetch(`${API_BASE_URL}/api/v1/documents/cccd/by-citizen/${citizenId}`, {
+      headers: {
+        ...getAuthHeader(),
+      },
+    });
+    return handleResponse(response);
+  },
+
+  async getBHYTByCitizen(citizenId) {
+    const response = await fetch(`${API_BASE_URL}/api/v1/documents/bhyt/by-citizen/${citizenId}`, {
+      headers: {
+        ...getAuthHeader(),
+      },
+    });
+    return handleResponse(response);
+  },
 };
 
 // Documents API
@@ -269,6 +287,41 @@ export const usersAPI = {
         ...getAuthHeader(),
       },
       body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+    });
+    
+    return handleResponse(response);
+  },
+
+  // Admin: User Management
+  async getAllUsers() {
+    const response = await fetch(`${API_BASE_URL}/api/v1/users/`, {
+      headers: {
+        ...getAuthHeader(),
+      },
+    });
+    
+    return handleResponse(response);
+  },
+
+  async updateUser(userId, userData) {
+    const response = await fetch(`${API_BASE_URL}/api/v1/users/${userId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeader(),
+      },
+      body: JSON.stringify(userData),
+    });
+    
+    return handleResponse(response);
+  },
+
+  async deleteUser(userId) {
+    const response = await fetch(`${API_BASE_URL}/api/v1/users/${userId}`, {
+      method: 'DELETE',
+      headers: {
+        ...getAuthHeader(),
+      },
     });
     
     return handleResponse(response);

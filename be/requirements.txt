@@ -6,5 +6,5 @@ passlib
 django
 django-extensions
 psycopg2-binary
-"pydantic[email]"
+pydantic[email]
 python-multipart

@@ -13,10 +13,6 @@ def get_current_user(token: str = Depends(reusable_oauth2)) -> User:
         user_id: str = payload.get("sub")
         if user_id is None:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Could not validate credentials")
-        try:
-            user_id = int(user_id)
-        except ValueError:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Could not validate credentials")
     except JWTError:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Could not validate credentials")
     

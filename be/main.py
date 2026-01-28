@@ -3,6 +3,7 @@ import django
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+
 # Khởi tạo cấu hình cho Django ORM trước khi import các router
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "orm.settings")
 django.setup()
@@ -19,7 +20,7 @@ app = FastAPI(
 # Cấu hình CORS (cho phép frontend gọi API)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=["*"],  # hoặc chỉ định ['http://localhost:5173']
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
