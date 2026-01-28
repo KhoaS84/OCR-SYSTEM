@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.utils import timezone
 from orm.models.citizens import Citizens
@@ -12,9 +13,13 @@ class Documents(models.Model):
         PENDING = 'pending', 'Chờ xử lý'
         VERIFIED = 'verified', 'Đã xác minh'
 
-    id = models.AutoField(
-        primary_key=True
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        unique=True,
     )
+    
     citizen = models.ForeignKey(
         Citizens,
         on_delete=models.CASCADE
@@ -106,8 +111,11 @@ class DocumentImages(models.Model):
         FRONT = 'front', 'Mặt trước'
         BACK = 'back', 'Mặt sau'
     
-    id = models.AutoField(
-        primary_key=True
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        unique=True,
     )
     document = models.ForeignKey(
         Documents,
@@ -130,3 +138,5 @@ class DocumentImages(models.Model):
 
     def __str__(self):
         return str(self.id)
+
+
