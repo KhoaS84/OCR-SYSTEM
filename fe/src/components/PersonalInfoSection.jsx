@@ -4,19 +4,19 @@ import useStore from '../store/useStore';
 
 function PersonalInfoSection({ showPersonalInfo, togglePersonalInfo, formData, handleInputChange, handleUpdate }) {
   const { user: currentUser } = useStore();
-  const [email, setEmail] = useState('');
+  // const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
 
   useEffect(() => {
     if (currentUser) {
-      setEmail(currentUser.email || '');
+      // setEmail(currentUser.email || '');
       setUsername(currentUser.username || '');
     }
   }, [currentUser]);
 
   const handleUpdateProfile = () => {
-    handleUpdate({ email, username, password: newPassword });
+    handleUpdate({ username, password: newPassword });
     setNewPassword('');
   };
 
@@ -34,15 +34,7 @@ function PersonalInfoSection({ showPersonalInfo, togglePersonalInfo, formData, h
         <div className="section-content">
           <h3>Thông tin cá nhân</h3>
           <div className="form-grid">
-            <div className="form-group">
-              <label>Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="form-input"
-              />
-            </div>
+            {/* Email field hidden as requested */}
             <div className="form-group">
               <label>Tên đăng nhập</label>
               <input

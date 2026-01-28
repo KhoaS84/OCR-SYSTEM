@@ -3,7 +3,7 @@ function Sidebar({ activeTab, setActiveTab, currentUser }) {
     { id: 'info', icon: '👤', label: 'Thông tin cá nhân' },
     { id: 'cccd', icon: '🆔', label: 'Căn cước công dân' },
     { id: 'insurance', icon: '🏥', label: 'Bảo hiểm y tế' },
-    { id: 'license', icon: '🚗', label: 'Giấy phép xe' },
+    // { id: 'license', icon: '🚗', label: 'Giấy phép xe' }, // Ẩn tab GPLX
   ];
 
   // Add Users tab for admin only

@@ -1,61 +1,63 @@
 import { create } from 'zustand';
 
 const useStore = create((set) => ({
-  // User state
+  // ================= AUTH =================
   user: null,
   isAuthenticated: false,
-  
-  // Login action
-  login: (userData) => set({ 
-    user: userData, 
-    isAuthenticated: true 
-  }),
-  
-  // Logout action
-  logout: () => set({ 
-    user: null, 
-    isAuthenticated: false 
-  }),
-  
-  // Update user profile
-  updateUser: (userData) => set((state) => ({
-    user: { ...state.user, ...userData }
-  })),
+  authLoading: true, // ✅ THÊM
 
-  // Home page state
+  login: (userData) =>
+    set({
+      user: userData,
+      isAuthenticated: true,
+    }),
+
+  logout: () => {
+    localStorage.removeItem('taskflow_user');
+    localStorage.removeItem('token');
+    set({
+      user: null,
+      isAuthenticated: false,
+    });
+  },
+
+  setAuthLoading: (value) => set({ authLoading: value }), // ✅ THÊM
+
+  // ================= UI =================
   activeTab: 'info',
   setActiveTab: (tab) => set({ activeTab: tab }),
 
-  // Personal info section
   showPersonalInfo: true,
-  togglePersonalInfo: () => set((state) => ({ 
-    showPersonalInfo: !state.showPersonalInfo 
-  })),
+  togglePersonalInfo: () =>
+    set((state) => ({ showPersonalInfo: !state.showPersonalInfo })),
 
-  // Form data
+  // ================= FORM =================
   formData: {
     fullName: 'Nguyễn Công Trình',
-    age: '18'
+    age: '18',
   },
-  updateFormData: (data) => set((state) => ({
-    formData: { ...state.formData, ...data }
-  })),
+  updateFormData: (data) =>
+    set((state) => ({
+      formData: { ...state.formData, ...data },
+    })),
 
-  // Search state
+  // ================= SEARCH =================
   searchQuery: '',
   setSearchQuery: (query) => set({ searchQuery: query }),
 
-  // Modal state
+  // ================= MODAL =================
   selectedPerson: null,
   showModal: false,
-  openModal: (person) => set({ 
-    selectedPerson: person, 
-    showModal: true 
-  }),
-  closeModal: () => set({ 
-    selectedPerson: null, 
-    showModal: false 
-  }),
+  openModal: (person) =>
+    set({
+      selectedPerson: person,
+      showModal: true,
+    }),
+  closeModal: () =>
+    set({
+      selectedPerson: null,
+      showModal: false,
+    }),
 }));
 
 export default useStore;

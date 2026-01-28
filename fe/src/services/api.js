@@ -13,9 +13,24 @@ export const getAuthHeader = () => {
 // Helper function để xử lý response
 export const handleResponse = async (response) => {
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
-    throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+    const errorData = await response
+      .json()
+      .catch(() => ({ detail: 'Unknown error' }));
+
+    if (response.status === 401) {
+      // ❗ KHÔNG logout ở đây
+      const err = new Error('UNAUTHORIZED');
+      err.status = 401;
+      throw err;
+    }
+
+    const err = new Error(
+      errorData.detail || `HTTP error! status: ${response.status}`
+    );
+    err.status = response.status;
+    throw err;
   }
+
   return response.json();
 };
 
@@ -262,12 +277,33 @@ export const usersAPI = {
         ...getAuthHeader(),
       },
     });
-    
     return handleResponse(response);
   },
 
+  // Chỉ dùng cho cá nhân tự cập nhật
   async updateProfile(userData) {
+    // Chỉ giữ lại email, username, password
+    const payload = {};
+    if (userData.email) payload.email = userData.email;
+    if (userData.username) payload.username = userData.username;
+    if (userData.password) payload.password = userData.password;
     const response = await fetch(`${API_BASE_URL}/api/v1/users/me`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeader(),
+      },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(response);
+  },
+
+  // Chỉ dùng cho admin cập nhật user khác (id là UUID, không truyền 'me')
+  async updateUser(userId, userData) {
+    if (userId === 'me') {
+      throw new Error('Không được truyền "me" vào updateUser, hãy dùng updateProfile cho cá nhân!');
+    }
+    const response = await fetch(`${API_BASE_URL}/api/v1/users/${userId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -275,7 +311,6 @@ export const usersAPI = {
       },
       body: JSON.stringify(userData),
     });
-    
     return handleResponse(response);
   },
 
@@ -298,19 +333,6 @@ export const usersAPI = {
       headers: {
         ...getAuthHeader(),
       },
-    });
-    
-    return handleResponse(response);
-  },
-
-  async updateUser(userId, userData) {
-    const response = await fetch(`${API_BASE_URL}/api/v1/users/${userId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeader(),
-      },
-      body: JSON.stringify(userData),
     });
     
     return handleResponse(response);

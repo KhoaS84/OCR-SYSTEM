@@ -26,7 +26,17 @@ function DetailModal({ selectedPerson, showModal, onClose, onUpdate, loading, er
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    let newValue = value;
+    // Nếu là trường citizen_gender, chuyển sang tiếng Anh khi lưu
+    if (name === 'citizen_gender' || name === 'gender') {
+      if (value === 'Nam') newValue = 'MALE';
+      else if (value === 'Nữ') newValue = 'FEMALE';
+      else if (value === 'MALE' || value === 'FEMALE') newValue = value;
+    }
+    setForm((prev) => {
+      const docId = prev.document_id || prev.id;
+      return { ...prev, [name]: newValue, document_id: docId };
+    });
   };
 
   const handleSave = async () => {
@@ -35,7 +45,13 @@ function DetailModal({ selectedPerson, showModal, onClose, onUpdate, loading, er
     try {
       // Đảm bảo luôn có document_id đúng
       const docId = form.document_id || form.id;
-      const data = { ...form, document_id: docId };
+      let data = { ...form, document_id: docId };
+      // Chuyển citizen_gender sang tiếng Anh khi PUT
+      if (data.citizen_gender === 'Nam') data.citizen_gender = 'MALE';
+      if (data.citizen_gender === 'Nữ') data.citizen_gender = 'FEMALE';
+      if (data.gender === 'Nam') data.gender = 'MALE';
+      if (data.gender === 'Nữ') data.gender = 'FEMALE';
+      console.log('📝 CCCD save data:', data);
       if (activeTab === 'cccd') {
         await updateCCCD(docId, data);
       } else if (activeTab === 'insurance') {
@@ -63,7 +79,16 @@ function DetailModal({ selectedPerson, showModal, onClose, onUpdate, loading, er
             <div className="modal-form-group"><label>Số CCCD</label><input name="so_cccd" type="text" value={form.so_cccd || ''} onChange={handleChange} readOnly={!editMode} /></div>
             <div className="modal-form-group"><label>Họ tên</label><input name="citizen_name" type="text" value={form.citizen_name || form.name || ''} onChange={handleChange} readOnly={!editMode} /></div>
             <div className="modal-form-group"><label>Ngày sinh</label><input name="citizen_dob" type="text" value={form.citizen_dob || form.date_of_birth || ''} onChange={handleChange} readOnly={!editMode} /></div>
-            <div className="modal-form-group"><label>Giới tính</label><input name="citizen_gender" type="text" value={form.citizen_gender || form.gender || ''} onChange={handleChange} readOnly={!editMode} /></div>
+            <div className="modal-form-group"><label>Giới tính</label>
+              {editMode ? (
+                <select name="citizen_gender" value={form.citizen_gender === 'MALE' ? 'Nam' : form.citizen_gender === 'FEMALE' ? 'Nữ' : (form.citizen_gender || form.gender === 'MALE' ? 'Nam' : form.gender === 'FEMALE' ? 'Nữ' : (form.gender || ''))} onChange={handleChange}>
+                  <option value="Nam">Nam</option>
+                  <option value="Nữ">Nữ</option>
+                </select>
+              ) : (
+                <input name="citizen_gender" type="text" value={form.citizen_gender === 'MALE' ? 'Nam' : form.citizen_gender === 'FEMALE' ? 'Nữ' : (form.citizen_gender || form.gender === 'MALE' ? 'Nam' : form.gender === 'FEMALE' ? 'Nữ' : (form.gender || ''))} readOnly />
+              )}
+            </div>
             <div className="modal-form-group"><label>Quê quán</label><input name="origin_place" type="text" value={form.origin_place || ''} onChange={handleChange} readOnly={!editMode} /></div>
             <div className="modal-form-group"><label>Địa chỉ</label><input name="current_place" type="text" value={form.current_place || ''} onChange={handleChange} readOnly={!editMode} /></div>
             <div className="modal-form-group"><label>Ngày cấp</label><input name="issue_date" type="text" value={form.issue_date || ''} onChange={handleChange} readOnly={!editMode} /></div>

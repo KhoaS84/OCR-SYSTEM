@@ -448,7 +448,9 @@ async def get_cccd_by_citizen(citizen_id: str, current_user = Depends(get_curren
             "so_cccd": "",
             "origin_place": "", 
             "current_place": "",
-            "has_cccd_document": len(documents) > 0
+            "has_cccd_document": len(documents) > 0,
+            # Thêm document_id nếu có document
+            "document_id": str(documents[0].id) if documents else None
         }
         
         # Nếu có document CCCD, lấy thông tin chi tiết

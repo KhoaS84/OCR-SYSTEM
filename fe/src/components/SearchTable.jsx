@@ -1,15 +1,32 @@
+import { useState, useEffect } from 'react';
+
 function SearchTable({ searchQuery, setSearchQuery, filteredData, onRowClick }) {
+  const [inputValue, setInputValue] = useState(searchQuery || '');
+
+  // ✅ sync khi searchQuery đổi từ ngoài (zustand / parent)
+  useEffect(() => {
+    setInputValue(searchQuery || '');
+  }, [searchQuery]);
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      setSearchQuery(inputValue);
+    }
+  };
+
   return (
     <div className="search-content">
       <div className="search-header">
         <h3>Search</h3>
+
         <div className="search-box">
           <span className="search-icon">🔍</span>
           <input
             type="text"
             placeholder="Enter name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
             className="search-input"
           />
         </div>
@@ -26,6 +43,7 @@ function SearchTable({ searchQuery, setSearchQuery, filteredData, onRowClick }) 
               <th>Nationality</th>
             </tr>
           </thead>
+
           <tbody>
             {filteredData.length === 0 ? (
               <tr>
@@ -35,10 +53,17 @@ function SearchTable({ searchQuery, setSearchQuery, filteredData, onRowClick }) 
               </tr>
             ) : (
               filteredData.map((item) => (
-                <tr key={item.id} onClick={() => onRowClick(item)} className="clickable-row">
+                <tr
+                  key={item.id}
+                  onClick={() => onRowClick(item)}
+                  className="clickable-row"
+                >
                   <td>
                     <div className="table-avatar">
-                      <img src="https://via.placeholder.com/40" alt="Avatar" />
+                      <img
+                        src={item.avatar || 'https://via.placeholder.com/40'}
+                        alt="Avatar"
+                      />
                     </div>
                   </td>
                   <td>{item.name}</td>

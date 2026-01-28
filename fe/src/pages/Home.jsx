@@ -7,6 +7,7 @@ import DetailModal from '../components/DetailModal';
 import UserManagement from '../components/UserManagement';
 import useStore from '../store/useStore';
 import { citizensAPI, usersAPI } from '../services/api';
+import { updateCCCD } from '../services/documentsAdmin';
 import '../styles/Home.css';
 
 function Home() {
@@ -18,7 +19,6 @@ function Home() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
 
-  // Get state and actions from store
   const {
     activeTab,
     setActiveTab,
@@ -32,7 +32,9 @@ function Home() {
     showModal,
     openModal,
     closeModal,
+    logout,
   } = useStore();
+  window.__ZUSTAND_LOGOUT__ = logout;
 
   // Load user info
   useEffect(() => {
@@ -44,26 +46,16 @@ function Home() {
         console.error('Failed to load user info:', err);
       }
     };
-    
     loadUserInfo();
   }, []);
 
-  // Load citizens data when search or tab changes
+  // Load citizens data
   useEffect(() => {
     const loadCitizens = async () => {
       setLoading(true);
       setError('');
-      
       try {
-        let data;
-        if (searchQuery.trim()) {
-          // Tìm kiếm theo query
-          data = await citizensAPI.search(searchQuery);
-        } else {
-          // Lấy tất cả (có thể cần thêm API endpoint để lấy all)
-          data = await citizensAPI.search('');
-        }
-        
+        const data = await citizensAPI.search(searchQuery || '');
         setCitizensData(Array.isArray(data) ? data : []);
       } catch (err) {
         setError(err.message || 'Không thể tải dữ liệu');
@@ -78,8 +70,6 @@ function Home() {
     }
   }, [searchQuery, activeTab]);
 
-  const filteredData = citizensData;
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     updateFormData({ [name]: value });
@@ -87,7 +77,6 @@ function Home() {
 
   const handleUpdate = async () => {
     if (!currentUser) return;
-    
     try {
       await usersAPI.updateProfile(formData);
       alert('Đã cập nhật thông tin thành công!');
@@ -96,70 +85,92 @@ function Home() {
     }
   };
 
+  // ✅ HANDLE UPDATE CARD (LOGIC ĐƯỢC ĐƯA RA NGOÀI JSX)
   const handleUpdateCard = async () => {
     if (!selectedPerson) return;
-    
+
     try {
-      await citizensAPI.update(selectedPerson.id, selectedPerson);
-      alert('Đã cập nhật thẻ thành công!');
-      closeModal();
-      // Reload data
-      const data = await citizensAPI.search(searchQuery);
-      setCitizensData(Array.isArray(data) ? data : []);
+      let updatedId = null;
+      if (activeTab === 'cccd') {
+        const { document_id, ...data } = selectedPerson;
+        await updateCCCD(document_id, { ...data, document_id });
+        updatedId = document_id;
+      } else {
+        await citizensAPI.update(selectedPerson.id, selectedPerson);
+        updatedId = selectedPerson.id;
+      }
+
+      const updatedCitizens = await citizensAPI.search(searchQuery);
+      setCitizensData(Array.isArray(updatedCitizens) ? updatedCitizens : []);
+
+      // Luôn reload lại detailData từ BE bằng document_id/id vừa cập nhật
+      if (activeTab === 'cccd' && updatedId) {
+        const newDetail = await citizensAPI.getCCCDByCitizen(updatedId);
+        setDetailData({
+          ...newDetail,
+          document_id: newDetail.document_id,
+        });
+        setTimeout(closeModal, 100);
+      } else {
+        closeModal();
+      }
     } catch (err) {
-      alert('Cập nhật thất bại: ' + err.message);
+      console.error(err);
     }
   };
 
-  // Hàm mở modal chi tiết theo tab
+  // Open modal
   const handleOpenModal = async (person) => {
-    console.log('🔍 handleOpenModal called', person, 'activeTab:', activeTab);
     setDetailData(null);
     setDetailError('');
-    if (activeTab === 'cccd') {
-      setDetailLoading(true);
-      try {
-        console.log('📞 Calling getCCCDByCitizen for citizen:', person.id);
+    setDetailLoading(true);
+
+    try {
+      if (activeTab === 'cccd') {
         const data = await citizensAPI.getCCCDByCitizen(person.id);
-        console.log('✅ CCCD data received:', data);
-        // Đảm bảo có trường id là document_id
-        setDetailData({ ...person, ...data, id: data.id, document_id: data.id, type: 'cccd' });
-      } catch (err) {
-        console.error('❌ Error loading CCCD:', err);
-        setDetailError('Không thể tải chi tiết CCCD');
-      } finally {
-        setDetailLoading(false);
-      }
-    } else if (activeTab === 'insurance') {
-      setDetailLoading(true);
-      try {
-        console.log('📞 Calling getBHYTByCitizen for citizen:', person.id);
+        const documentId = data.document_id || data.id;
+        setDetailData({
+          ...person,
+          ...data,
+          document_id: documentId,
+          id: documentId,
+          type: 'cccd',
+        });
+      } else if (activeTab === 'insurance') {
         const data = await citizensAPI.getBHYTByCitizen(person.id);
-        console.log('✅ BHYT data received:', data);
-        console.log('📊 BHYT fields - so_bhyt:', data.so_bhyt, 'hospital_code:', data.hospital_code, 'insurance_area:', data.insurance_area);
         setDetailData({ ...person, ...data, type: 'bhyt' });
-      } catch (err) {
-        console.error('❌ Error loading BHYT:', err);
-        setDetailError('Không thể tải chi tiết BHYT');
-      } finally {
-        setDetailLoading(false);
+      } else {
+        setDetailData(person);
       }
-    } else {
-      setDetailData(person);
+      openModal(person);
+    } catch (err) {
+      setDetailError('Không thể tải chi tiết');
+    } finally {
+      setDetailLoading(false);
     }
-    openModal(person);
   };
 
   return (
     <div className="home-container">
-      <Header userName={currentUser?.full_name || currentUser?.username || 'User'} />
+      <Header
+        userName={currentUser?.full_name || currentUser?.username || 'User'}
+      />
 
       <div className="main-content">
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} currentUser={currentUser} />
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          currentUser={currentUser}
+        />
 
         <main className="content-area">
           <div className="page-header">
-            <h2>Xin chào <strong>{currentUser?.full_name || currentUser?.username || 'User'}</strong></h2>
+            <h2>
+              Xin chào{' '}
+              <strong>
+                {currentUser?.full_name || currentUser?.username || 'User'}
+              </strong>
+            </h2>
           </div>
 
           {activeTab === 'info' && (
@@ -172,35 +183,37 @@ function Home() {
             />
           )}
 
-          {(activeTab === 'cccd' || activeTab === 'insurance' || activeTab === 'license') && (
+          {(activeTab === 'cccd' ||
+            activeTab === 'insurance') && (
             <>
-              {loading && <div style={{ textAlign: 'center', padding: '20px' }}>Đang tải...</div>}
-              {error && <div style={{ textAlign: 'center', padding: '20px', color: 'red' }}>{error}</div>}
+              {loading && <div style={{ padding: 20 }}>Đang tải...</div>}
+              {error && (
+                <div style={{ padding: 20, color: 'red' }}>{error}</div>
+              )}
               {!loading && !error && (
                 <SearchTable
                   searchQuery={searchQuery}
                   setSearchQuery={setSearchQuery}
-                  filteredData={filteredData}
+                  filteredData={citizensData}
                   onRowClick={handleOpenModal}
                 />
               )}
             </>
           )}
 
-          {activeTab === 'users' && (
-            <UserManagement />
-          )}
+          {activeTab === 'users' && <UserManagement />}
         </main>
       </div>
 
+      {/* ✅ JSX CHUẨN – KHÔNG LOGIC */}
       <DetailModal
-        selectedPerson={detailData || selectedPerson}
+        selectedPerson={detailData}
         showModal={showModal}
         onClose={closeModal}
         onUpdate={handleUpdateCard}
         loading={detailLoading}
         error={detailError}
-        activeTab={activeTab}
+        activeTab={activeTab}   // <-- THÊM DÒNG NÀY
       />
     </div>
   );

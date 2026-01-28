@@ -1,4 +1,7 @@
+import useStore from '../store/useStore';
 function Header({ userName }) {
+  
+  const logout = useStore((state) => state.logout);
   return (
     <header className="header">
       <div className="header-left">
@@ -11,6 +14,7 @@ function Header({ userName }) {
         <div className="user-avatar">
           <img src="https://via.placeholder.com/40" alt="Avatar" />
         </div>
+        <button className="btn-logout" onClick={() => { logout(); window.location.href = '/login'; }} style={{marginLeft:16}}>Đăng xuất</button>
       </div>
     </header>
   );
