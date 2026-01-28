@@ -1,0 +1,14 @@
+# Pipeline V2 Requirements
+# YOLO + VietOCR Integration
+
+# FastAPI and related
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+
+# HTTP client
+requests
+
+# Utilities
+python-dotenv

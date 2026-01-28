@@ -1,0 +1,25 @@
+# VietOCR API Service Requirements
+
+# FastAPI and related
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+pydantic-settings
+
+# VietOCR
+vietocr
+
+# PyTorch (required by VietOCR)
+torch>=2.1.0
+torchvision>=0.16.0
+
+# Image Processing
+Pillow>=10.0.0
+
+# Utilities
+numpy>=1.21.0
+gdown
+
+# CORS
+python-dotenv
